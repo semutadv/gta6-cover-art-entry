@@ -1,51 +1,62 @@
-// Wires the page: pick a photo, type a caption, export the square cover as a PNG. A `?shot=` query sets up a fixed
-// scene for a screenshot instead (./shots.js).
-import { drawCover } from './cover.js';
-import { runShot } from './shots.js';
+// main.js — boots Vice Cover Studio.
+//
+// Loads the two built-in sample photos, plans them into the Classic
+// layout so the very first screen is already a finished cover, wires the
+// editor, and — when the URL carries ?shot= — stages one of the
+// deterministic screenshot scenes from shots.js instead, flagging
+// window.__shotReady once the scene is painted.
 
-const canvas = document.getElementById('cover');
-const caption = document.getElementById('caption');
-const status = document.getElementById('status');
-let photo = null;
+import { state, addPhoto, assignPlannedPhotos, emit } from './state.js';
+import { initEditor } from './editor.js';
+import { configureFromParams } from './shots.js';
 
-function redraw() {
-  drawCover(canvas, photo, caption.value);
-}
+const SAMPLES = [
+  { name: 'Boulevard sample', src: 'samples/boulevard.jpg' },
+  { name: 'Pier sample', src: 'samples/pier.jpg' },
+];
 
-/** Loads an image from a URL, resolving to the image once it can be drawn. */
-export function loadImage(url) {
+function loadImage(src) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = url;
+    img.onerror = () => reject(new Error(`could not load ${src}`));
+    img.src = src;
   });
 }
 
-document.getElementById('photo').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  photo = await loadImage(URL.createObjectURL(file));
-  redraw();
-});
-caption.addEventListener('input', redraw);
-document.getElementById('export').addEventListener('click', () => {
-  canvas.toBlob((blob) => {
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'cover-1080x1080.png';
-    a.click();
-    status.textContent = 'Saved cover-1080x1080.png';
-  }, 'image/png');
-});
+async function boot() {
+  const params = new URLSearchParams(location.search);
+  const shot = params.get('shot');
 
-const shot = new URLSearchParams(location.search).get('shot');
-if (shot) {
-  runShot(shot, new URLSearchParams(location.search), async (sample, text) => {
-    photo = await loadImage(sample);
-    caption.value = text;
-    redraw();
-  });
-} else {
-  redraw();
+  for (const sample of SAMPLES) {
+    const img = await loadImage(sample.src);
+    if (img.decode) {
+      try { await img.decode(); } catch { /* already decoded and usable */ }
+    }
+    addPhoto(sample.name, img);
+  }
+
+  if (shot) {
+    document.body.classList.add('shot', `shot-${shot}`);
+    configureFromParams(params);
+  } else {
+    assignPlannedPhotos();
+  }
+
+  const editor = initEditor({ fullBleed: shot === 'cover' });
+  emit();
+  editor.renderNow();
+
+  if (shot) {
+    // Two frames guarantee the scene is fully painted before capture.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      window.__shotReady = true;
+    }));
+  }
 }
+
+boot().catch((err) => {
+  console.error(err);
+  const el = document.getElementById('status');
+  if (el) el.textContent = 'The studio hit a snag starting up — reload to try again.';
+});
