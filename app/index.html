@@ -7,54 +7,55 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="app">
-  <aside class="sidebar">
-    <header class="brand">
+<div class="studio">
+  <aside class="toolrail">
+    <header class="masthead">
       <h1>Vice Cover Studio</h1>
-      <p>Turn your photos into multi-panel cover art — sunset grades, bold lettering, one-click PNG. Everything happens on this machine; photos never leave it.</p>
+      <p>Build poster-style cover art from your own photos — sunset grades, heavy lettering, one-click PNG. Nothing here talks to a server; every pixel is made on this machine.</p>
     </header>
 
-    <section class="group">
+    <section class="block">
       <h2>Photos</h2>
-      <div id="photoStrip" class="thumbs"></div>
-      <button type="button" id="addPhotos" class="btn wide">Add photos…</button>
-      <input type="file" id="fileInput" accept="image/*" multiple hidden>
-      <p class="hint">…or drag &amp; drop images anywhere on the window. Up to 6 photos. Click a panel on the cover, then a thumbnail, to place it.</p>
+      <div id="photoRail" class="strips"></div>
+      <button type="button" id="bringPhotos" class="action full">Bring in photos…</button>
+      <input type="file" id="filePicker" accept="image/*" multiple hidden>
+      <p class="tip">…or drop image files anywhere on the window. Six photos at most. Pick a panel on the cover first, then a thumbnail, to place it there.</p>
     </section>
 
-    <section class="group">
+    <section class="block">
       <h2>Layout</h2>
-      <div class="chips" role="group" aria-label="Layout">
-        <button type="button" class="chip" data-layout="classic">Classic Cover</button>
-        <button type="button" class="chip" data-layout="trio">Trio</button>
-        <button type="button" class="chip" data-layout="duo">Duo Split</button>
-        <button type="button" class="chip" data-layout="solo">Solo Poster</button>
+      <div class="pills" role="group" aria-label="Layout">
+        <button type="button" class="pill" data-layout="classic">Classic Cover</button>
+        <button type="button" class="pill" data-layout="trio">Trio</button>
+        <button type="button" class="pill" data-layout="duo">Duo Split</button>
+        <button type="button" class="pill" data-layout="solo">Solo Poster</button>
       </div>
     </section>
 
-    <section class="group">
+    <section class="block">
       <h2>Colour grade</h2>
-      <div class="chips" role="group" aria-label="Colour grade">
-        <button type="button" class="chip" data-grade="vice"><span class="swatch vice"></span>Vice Sunset</button>
-        <button type="button" class="chip" data-grade="neon"><span class="swatch neon"></span>Neon Nights</button>
-        <button type="button" class="chip" data-grade="golden"><span class="swatch golden"></span>Golden Hour</button>
-        <button type="button" class="chip" data-grade="noir"><span class="swatch noir"></span>Noir Vice</button>
-        <button type="button" class="chip" data-grade="original"><span class="swatch original"></span>Original</button>
+      <div class="pills" role="group" aria-label="Colour grade">
+        <button type="button" class="pill" data-grade="vice"><span class="dot vice"></span>Vice Sunset</button>
+        <button type="button" class="pill" data-grade="neon"><span class="dot neon"></span>Neon Nights</button>
+        <button type="button" class="pill" data-grade="golden"><span class="dot golden"></span>Golden Hour</button>
+        <button type="button" class="pill" data-grade="noir"><span class="dot noir"></span>Noir Vice</button>
+        <button type="button" class="pill" data-grade="original"><span class="dot original"></span>Original</button>
       </div>
     </section>
 
-    <section class="group">
-      <h2 id="panelLabel">Panel</h2>
-      <label class="row"><span>Zoom <b id="zoomVal">1.00×</b></span>
-        <input type="range" id="zoom" min="0.4" max="4" step="0.01" value="1">
+    <section class="block">
+      <h2 id="panelHeading">Panel</h2>
+      <label class="field"><span>Zoom <b id="zoomRead">1.00×</b></span>
+        <input type="range" id="zoomSlider" min="0.4" max="4" step="0.01" value="1">
       </label>
-      <div class="chips" role="group" aria-label="Fit mode">
-        <button type="button" class="chip" data-fit="fill">Fill panel</button>
-        <button type="button" class="chip" data-fit="fit">Fit whole photo</button>
-        <button type="button" class="chip" id="centerBtn">Centre</button>
+      <div class="pills" role="group" aria-label="Fit mode">
+        <button type="button" class="pill" data-fit="fill">Fill panel</button>
+        <button type="button" class="pill" data-fit="fit">Fit whole photo</button>
+        <button type="button" class="pill" id="flipPhotoBtn">Flip photo</button>
+        <button type="button" class="pill" id="centreBtn">Centre</button>
       </div>
-      <label class="row"><span>Panel grade</span>
-        <select id="panelGrade">
+      <label class="field"><span>Panel grade</span>
+        <select id="panelTone">
           <option value="">Use cover grade</option>
           <option value="vice">Vice Sunset</option>
           <option value="neon">Neon Nights</option>
@@ -63,55 +64,55 @@
           <option value="original">Original</option>
         </select>
       </label>
-      <p class="hint">Drag the photo inside its panel to reposition. Arrow keys nudge, + / − zoom, number keys pick a panel.</p>
+      <p class="tip">Drag the photo inside its panel to move it. Arrow keys nudge, + / − zoom, F flips, number keys pick a panel.</p>
     </section>
 
-    <section class="group">
+    <section class="block">
       <h2>Lettering</h2>
-      <label class="row"><span>Title</span>
-        <input type="text" id="titleInput" value="VICE COVER" maxlength="40" autocomplete="off" spellcheck="false">
+      <label class="field"><span>Title</span>
+        <input type="text" id="titleField" value="VICE COVER" maxlength="40" autocomplete="off" spellcheck="false">
       </label>
-      <label class="row"><span>Caption</span>
-        <input type="text" id="captionInput" value="SUNSET CITY LIMITS" maxlength="60" autocomplete="off" spellcheck="false">
+      <label class="field"><span>Caption</span>
+        <input type="text" id="captionField" value="LEONIDA AFTER DARK" maxlength="60" autocomplete="off" spellcheck="false">
       </label>
-      <label class="row"><span>Position</span>
-        <select id="letterPos">
+      <label class="field"><span>Position</span>
+        <select id="letterSpot">
           <option value="top">Top</option>
           <option value="bottom">Bottom</option>
         </select>
       </label>
-      <label class="row"><span>Size</span>
-        <input type="range" id="titleSize" min="0.5" max="1.8" step="0.05" value="1">
+      <label class="field"><span>Size</span>
+        <input type="range" id="letterScale" min="0.5" max="1.8" step="0.05" value="1">
       </label>
-      <label class="row check"><input type="checkbox" id="letterGradient" checked> Sunset gradient fill</label>
+      <label class="field check"><input type="checkbox" id="letterShine" checked> Sunset gradient fill</label>
     </section>
 
-    <section class="group">
+    <section class="block">
       <h2>Export</h2>
-      <label class="row"><span>Size</span>
-        <select id="exportSize">
+      <label class="field"><span>Size</span>
+        <select id="exportPick">
           <option value="post">Post · 1080 × 1080</option>
           <option value="portrait">Portrait · 1080 × 1350</option>
           <option value="landscape">Landscape · 1920 × 1080</option>
           <option value="story">Story · 1080 × 1920</option>
         </select>
       </label>
-      <div class="btn-row">
-        <button type="button" id="exportBtn" class="btn primary">Export PNG</button>
-        <button type="button" id="exportAllBtn" class="btn">Export all sizes</button>
+      <div class="action-row">
+        <button type="button" id="exportOneBtn" class="action hot">Export PNG</button>
+        <button type="button" id="exportEveryBtn" class="action">Export all sizes</button>
       </div>
-      <button type="button" id="surpriseBtn" class="btn wide ghost">Surprise me</button>
-      <p id="status" class="status" role="status" aria-live="polite">Your first cover is ready — the samples are already in the Classic layout.</p>
+      <button type="button" id="shuffleBtn" class="action full faint">Surprise me</button>
+      <p id="noticeLine" class="notice" role="status" aria-live="polite">Your first cover is ready — the samples are already in the Classic layout.</p>
     </section>
   </aside>
 
-  <main class="stage-wrap">
-    <canvas id="stage"></canvas>
-    <p class="stage-hint">Click a panel to select it · drag its photo to reposition</p>
+  <main class="board-wrap">
+    <canvas id="board"></canvas>
+    <p class="board-tip">Click a panel to select it · drag its photo to reposition</p>
   </main>
 </div>
 
-<div id="dropOverlay" class="drop-overlay"><span>Drop photos to add them</span></div>
+<div id="dropVeil" class="drop-veil"><span>Drop photos to add them</span></div>
 
 <script type="module" src="src/main.js"></script>
 </body>
