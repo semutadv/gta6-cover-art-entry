@@ -16,22 +16,36 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-app.ts';
 
-const root = fileURLToPath(new URL('.', import.meta.url));
-const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
+const repoRoot = fileURLToPath(new URL('.', import.meta.url));
+const destDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 
-mkdirSync(outDir, { recursive: true });
-cpSync(join(root, 'app'), join(outDir, 'app'), { recursive: true });
-mkdirSync(join(outDir, 'screenshots'), { recursive: true });
-if (existsSync(join(root, 'screenshots'))) {
-  cpSync(join(root, 'screenshots'), join(outDir, 'screenshots'), { recursive: true });
-}
-
-const dossier = buildDossier(outDir, {
+// The gate caps the gta6-cover-art-01 scorer enforces on the hand-in.
+const GATE_CAPS = {
   text_max_bytes: 163840,
   screenshots: { max: 4, max_bytes: 262144 },
   app_max_files: 993,
   app_max_bytes: 50331648,
   app_path_max_bytes: 1000,
-});
-writeFileSync(join(outDir, 'dossier.json'), dossier);
-console.log(`Vice Cover Studio handed in: ${join(outDir, 'dossier.json')}`);
+};
+
+function copyTree(from, to) {
+  cpSync(join(repoRoot, from), join(destDir, to), { recursive: true });
+}
+
+function copyShots() {
+  mkdirSync(join(destDir, 'screenshots'), { recursive: true });
+  if (existsSync(join(repoRoot, 'screenshots'))) {
+    copyTree('screenshots', 'screenshots');
+  }
+}
+
+function handIn() {
+  mkdirSync(destDir, { recursive: true });
+  copyTree('app', 'app');
+  copyShots();
+  const record = buildDossier(destDir, GATE_CAPS);
+  writeFileSync(join(destDir, 'dossier.json'), record);
+  console.log(`Vice Cover Studio handed in: ${join(destDir, 'dossier.json')}`);
+}
+
+handIn();

@@ -4,18 +4,18 @@
 [![Rank](https://make.fun/badge/gta6-cover-art-01/semutadv/gta6-cover-art-entry/rank.svg)](https://make.fun/bounty/gta6-cover-art-01)
 [![Reward](https://make.fun/badge/gta6-cover-art-01/semutadv/gta6-cover-art-entry/reward.svg)](https://make.fun/bounty/gta6-cover-art-01)
 
-An offline browser app that turns your photos and a caption into cover art in the style of GTA 6's posters: the iconic multi-panel grid, Vice City sunset and neon colour grades, heavy condensed lettering, exported as a PNG in the common post sizes. Everything is local canvas work — your photos never leave the machine, and the app makes no network requests at all.
+A browser app that works fully offline and turns photos plus a caption into poster-style cover art in the spirit of GTA 6: the famous multi-panel grid, Vice City sunset and neon colour grades, heavy condensed lettering, and PNG exports in the post sizes people actually share. Every pixel is painted on local canvas — photos stay on the machine, and the app never makes a network request.
 
 Entry for the make.fun bounty **gta6-cover-art-01** ("Make GTA 6 Cover Art").
 
-## Features
+## What it does
 
-- **Four layouts, one click apart** — Classic Cover (hero panel with the slanted bottom edge, two mid panels, two bottom panels), Trio, Duo Split (one long diagonal), and Solo Poster, all separated by clean white keylines.
-- **Your photos, framed your way** — upload up to 6 photos by file picker or drag-and-drop, or start from the two built-in samples. Click a panel, click a thumbnail to place it; drag inside a panel to reposition, with zoom and fit/fill per panel. Empty panels are filled with a painted sunset-and-palms placeholder, so the cover always looks complete.
-- **Five colour grades** — Vice Sunset, Neon Nights, Golden Hour, Noir Vice, and Original, applied per panel with an optional per-panel override: canvas filters, gradient overlays, vignette, and fine film grain.
-- **Genre lettering** — an editable title and caption in heavy condensed capitals with a thick outline, drop shadow, slight italic skew, and an optional sunset gradient fill, at the top or bottom of the cover.
-- **Exports that match the preview** — one-click PNG at 1080×1080, 1080×1350, 1920×1080, and 1080×1920 (the layout reflows to the aspect), plus an Export-all button. The preview uses the same renderer as the export, so what you see is what you share.
-- **Fast from the first second** — the app opens with the samples already composed into a finished Classic cover, and a Surprise-me button shuffles photos, layout, and grade when you want a new direction. Keyboard: arrows nudge, +/− zoom, number keys select a panel.
+- **Four layouts a click apart** — Classic Cover (hero panel with the slanted lower edge, two middle panels, two bottom panels), Trio, Duo Split (a single long diagonal), and Solo Poster, all divided by clean pale keylines.
+- **Photos framed your way** — bring in up to 6 photos with the file picker or by dragging them onto the window, or start from the two built-in samples. Click a panel, then a thumbnail, to place a photo; drag inside a panel to move it, with zoom, fit/fill, and a mirror flip per panel. Panels left empty get a painted sunset-and-palms scene, so the cover always looks finished.
+- **Five colour grades** — Vice Sunset, Neon Nights, Golden Hour, Noir Vice, and Original, set for the whole cover with an optional override per panel: canvas filters, gradient washes, vignette, and fine film grain.
+- **Lettering in the genre's voice** — an editable title and caption in heavy condensed capitals with a thick outline, drop shadow, a slight italic lean, and an optional sunset gradient fill, placed at the top or bottom of the cover.
+- **Exports that match the preview** — one-click PNG at 1080×1080, 1080×1350, 1920×1080, and 1080×1920 (the layout reflows to the aspect), plus an Export-all button. The preview runs through the same renderer as the export, so what you see is what you share.
+- **A finished cover from the first second** — the app opens with the samples already composed into a Classic cover, and a Surprise-me button shuffles photos, layout, and grade when you want a fresh direction. Keyboard: arrows nudge, +/− zoom, F flips, number keys pick a panel.
 
 ## Run
 
@@ -31,8 +31,8 @@ No build step, no dependencies — plain static files and vanilla JavaScript ES 
 - `app/index.html` — the editor page (canvas + controls), no external references.
 - `app/style.css` — the dark neon editor styling.
 - `app/src/state.js` — the cover state and change notification.
-- `app/src/layouts.js` — the four panel layouts as polygon data, plus the painted placeholder art.
-- `app/src/grades.js` — the five colour grades (filter + overlay + vignette + grain recipes).
+- `app/src/layouts.js` — the four panel layouts as polygon data, plus the painted stand-in art.
+- `app/src/grades.js` — the five colour grades (filter + wash + vignette + grain recipes).
 - `app/src/render.js` — composes the cover at any size: panels, photos, grades, keylines, lettering.
 - `app/src/lettering.js` — the title/caption drawing.
 - `app/src/editor.js` — UI wiring: uploads, drag-and-drop, selection, drag-to-move, export, shortcuts.

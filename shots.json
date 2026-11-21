@@ -1,1 +1,26 @@
-[{"h":1080,"name":"1-cover.jpg","query":"?shot=cover&layout=classic&grade=vice&title=VICE%20COVER","w":1080},{"h":720,"name":"2-editor.jpg","query":"?shot=editor&layout=classic&grade=vice&title=VICE%20COVER","w":1280},{"h":1080,"name":"3-cover.jpg","query":"?shot=cover&layout=trio&grade=neon&title=VICE%20COVER","w":1080},{"h":720,"name":"4-editor.jpg","query":"?shot=editor&layout=duo&grade=golden&title=VICE%20COVER","w":1280}]
+[
+  {
+    "query": "?shot=cover&layout=classic&grade=vice&title=VICE%20COVER",
+    "name": "1-cover.jpg",
+    "w": 1080,
+    "h": 1080
+  },
+  {
+    "query": "?shot=editor&layout=classic&grade=vice&title=VICE%20COVER",
+    "name": "2-editor.jpg",
+    "w": 1280,
+    "h": 720
+  },
+  {
+    "query": "?shot=cover&layout=trio&grade=neon&title=VICE%20COVER",
+    "name": "3-cover.jpg",
+    "w": 1080,
+    "h": 1080
+  },
+  {
+    "query": "?shot=editor&layout=duo&grade=golden&title=VICE%20COVER",
+    "name": "4-editor.jpg",
+    "w": 1280,
+    "h": 720
+  }
+]
