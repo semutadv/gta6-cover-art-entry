@@ -1,11 +1,11 @@
-// grades.js — the five colour grades.
+// grades.js — the five colour grades the studio can lay over a photo.
 //
-// A grade is a recipe in two parts. The filter string is applied through
-// ctx.filter while the photo itself is drawn (brightness / contrast /
-// saturation / hue shifts). The finish — gradient overlays, a vignette and
-// fine film grain — is painted over the panel afterwards by
-// applyGradeFinish(). Grades apply per panel; a panel may override the
-// cover's global grade.
+// Every grade is a two-part recipe. The `filter` string rides along on
+// ctx.filter while the photo itself is drawn, shifting brightness,
+// contrast, saturation and hue in one pass. The finish — a stack of
+// gradient overlays, a vignette and a dusting of film grain — is painted
+// over the panel afterwards by applyGradeFinish(). Grades are chosen
+// per cover, and any single panel may override the cover's grade.
 
 export const GRADES = {
   vice: {
@@ -13,11 +13,11 @@ export const GRADES = {
     name: 'Vice Sunset',
     filter: 'saturate(1.38) contrast(1.1) brightness(1.05) hue-rotate(-8deg)',
     overlays: [
-      // Magenta wash falling from the top.
+      // Magenta wash pouring down from the top edge.
       { dir: 'down', stops: [[0, 'rgba(255,80,160,0.20)'], [0.55, 'rgba(255,80,160,0)']] },
-      // Teal pooling in the shadows at the bottom.
+      // Teal gathering in the shadows along the bottom.
       { dir: 'up', stops: [[0, 'rgba(0,70,90,0.38)'], [0.5, 'rgba(0,70,90,0)']] },
-      // Warm glow around the upper middle, where the sun would sit.
+      // A warm halo high in the frame, where the sun would be.
       { dir: 'down', stops: [[0, 'rgba(255,170,60,0.10)'], [0.7, 'rgba(255,170,60,0)']] },
     ],
     vignette: 0.32,
@@ -30,9 +30,9 @@ export const GRADES = {
     overlays: [
       // Electric blue raking in from the top-left corner.
       { dir: 'diag', stops: [[0, 'rgba(40,80,255,0.26)'], [0.6, 'rgba(40,80,255,0)']] },
-      // Hot pink answering from the bottom.
+      // Hot pink answering back from the bottom.
       { dir: 'up', stops: [[0, 'rgba(255,40,180,0.28)'], [0.55, 'rgba(255,40,180,0)']] },
-      // A breath of cyan along the top edge.
+      // A thin breath of cyan along the top edge.
       { dir: 'down', stops: [[0, 'rgba(0,220,255,0.13)'], [0.3, 'rgba(0,220,255,0)']] },
     ],
     vignette: 0.42,
@@ -54,7 +54,7 @@ export const GRADES = {
     name: 'Noir Vice',
     filter: 'contrast(1.32) brightness(1.04) grayscale(0.82)',
     overlays: [
-      // Cold steel tint over everything.
+      // A cold steel tint laid evenly over the whole panel.
       { dir: 'down', stops: [[0, 'rgba(30,60,70,0.16)'], [1, 'rgba(30,60,70,0.16)']] },
       { dir: 'up', stops: [[0, 'rgba(0,0,0,0.22)'], [0.45, 'rgba(0,0,0,0)']] },
     ],
@@ -75,8 +75,9 @@ export function gradeById(id) {
   return GRADES[id] || GRADES.vice;
 }
 
-// One shared grain tile, generated once with a fixed seed so every render —
-// including the screenshot scenes — lays down identical grain.
+// The grain comes from one shared tile, generated a single time from a
+// fixed seed, so every render — exports and screenshot scenes alike —
+// wears exactly the same grain instead of fresh noise each frame.
 let grainTile = null;
 let grainPattern = null;
 
@@ -106,9 +107,9 @@ export function getGrainPattern(ctx) {
   return grainPattern;
 }
 
-// Paint a grade's overlays, vignette and grain over the rectangle
-// (x, y, w, h). The caller clips to the panel shape first, so everything
-// here stays inside the panel.
+// Paint a grade's finish over the rectangle (x, y, w, h): its overlays,
+// then the vignette, then the grain. The caller has already clipped to
+// the panel's shape, so nothing here can spill outside it.
 export function applyGradeFinish(ctx, grade, x, y, w, h) {
   for (const ov of grade.overlays) {
     let grad;
@@ -121,10 +122,8 @@ export function applyGradeFinish(ctx, grade, x, y, w, h) {
   }
 
   if (grade.vignette > 0) {
-    const cx = x + w / 2;
-    const cy = y + h / 2;
     const r = Math.max(w, h) * 0.72;
-    const vig = ctx.createRadialGradient(cx, cy, r * 0.35, cx, cy, r);
+    const vig = ctx.createRadialGradient(x + w / 2, y + h / 2, r * 0.35, x + w / 2, y + h / 2, r);
     vig.addColorStop(0, 'rgba(10,2,20,0)');
     vig.addColorStop(1, `rgba(10,2,20,${grade.vignette})`);
     ctx.fillStyle = vig;

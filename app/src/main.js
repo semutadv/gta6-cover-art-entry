@@ -1,10 +1,11 @@
 // main.js — boots Vice Cover Studio.
 //
-// Loads the two built-in sample photos, plans them into the Classic
-// layout so the very first screen is already a finished cover, wires the
-// editor, and — when the URL carries ?shot= — stages one of the
-// deterministic screenshot scenes from shots.js instead, flagging
-// window.__shotReady once the scene is painted.
+// The two built-in sample photos are loaded and dealt into the Classic
+// layout, so the first thing anyone sees is a finished cover, not an
+// empty tool. Then the editor is wired up. When the URL carries a
+// ?shot= parameter, a deterministic screenshot scene from shots.js is
+// staged instead, and window.__shotReady is flagged once the scene has
+// had two full frames to paint.
 
 import { state, addPhoto, assignPlannedPhotos, emit } from './state.js';
 import { initEditor } from './editor.js';
@@ -31,7 +32,7 @@ async function boot() {
   for (const sample of SAMPLES) {
     const img = await loadImage(sample.src);
     if (img.decode) {
-      try { await img.decode(); } catch { /* already decoded and usable */ }
+      try { await img.decode(); } catch { /* decoded enough to draw already */ }
     }
     addPhoto(sample.name, img);
   }
@@ -48,7 +49,8 @@ async function boot() {
   editor.renderNow();
 
   if (shot) {
-    // Two frames guarantee the scene is fully painted before capture.
+    // Two animation frames: the second one guarantees the scene is
+    // fully painted before the harness takes its picture.
     requestAnimationFrame(() => requestAnimationFrame(() => {
       window.__shotReady = true;
     }));

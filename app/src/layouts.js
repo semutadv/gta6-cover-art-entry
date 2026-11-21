@@ -1,20 +1,20 @@
-// layouts.js — the four cover layouts as polygon data, plus the painted
-// placeholder that fills any panel left without a photo.
+// layouts.js — the four cover layouts, expressed as polygon data, and
+// the painted placeholder scene that stands in for a missing photo.
 //
-// A panel is a polygon in cover fractions (0..1 on both axes). Panels in a
-// layout share their edges exactly, so the white keylines the renderer
-// strokes along every edge line up into the clean grid of the poster
-// covers this app imitates.
+// A panel is a list of [x, y] points in cover fractions (0..1 on both
+// axes). Neighbouring panels share their edges point for point, so when
+// the renderer strokes every edge with a white keyline, the strokes
+// land exactly on top of each other and the poster grid stays clean.
 
 export const LAYOUTS = {
   classic: {
     id: 'classic',
     name: 'Classic Cover',
     panels: [
-      // Hero across the top; its bottom edge slants up to the right, the
-      // signature diagonal of the genre's poster grid.
+      // The hero spans the top; its lower edge climbs to the right —
+      // the slanted seam that gives the genre's poster grid its energy.
       [[0, 0], [1, 0], [1, 0.475], [0.5, 0.525], [0, 0.56]],
-      // Middle row.
+      // Middle row, split on the same diagonal.
       [[0, 0.56], [0.5, 0.525], [0.5, 0.79], [0, 0.8]],
       [[0.5, 0.525], [1, 0.475], [1, 0.78], [0.5, 0.79]],
       // Bottom row.
@@ -35,7 +35,7 @@ export const LAYOUTS = {
     id: 'duo',
     name: 'Duo Split',
     panels: [
-      // Two panels split by one long diagonal.
+      // Two panels, one long diagonal cut between them.
       [[0, 0], [0.58, 0], [0.42, 1], [0, 1]],
       [[0.58, 0], [1, 0], [1, 1], [0.42, 1]],
     ],
@@ -53,43 +53,45 @@ export function layoutById(id) {
   return LAYOUTS[id] || LAYOUTS.classic;
 }
 
-// Axis-aligned bounds of a polygon, in cover fractions.
+// The axis-aligned box a polygon fits inside, still in cover fractions.
 export function panelBounds(points) {
-  let minX = 1;
-  let minY = 1;
+  const b = { x: 1, y: 1, w: 0, h: 0 };
   let maxX = 0;
   let maxY = 0;
   for (const [x, y] of points) {
-    if (x < minX) minX = x;
-    if (y < minY) minY = y;
-    if (x > maxX) maxX = x;
-    if (y > maxY) maxY = y;
+    b.x = Math.min(b.x, x);
+    b.y = Math.min(b.y, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
   }
-  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+  b.w = maxX - b.x;
+  b.h = maxY - b.y;
+  return b;
 }
 
-// Even-odd ray cast, for turning canvas clicks into panel picks.
+// Even-odd ray casting: is this cover-fraction point inside the panel?
+// The editor uses it to turn canvas clicks into panel selections.
 export function pointInPolygon(px, py, points) {
   let inside = false;
   for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
     const [xi, yi] = points[i];
     const [xj, yj] = points[j];
-    if ((yi > py) !== (yj > py) && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) {
-      inside = !inside;
-    }
+    const crosses = (yi > py) !== (yj > py)
+      && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi;
+    if (crosses) inside = !inside;
   }
   return inside;
 }
 
-// --- The placeholder -------------------------------------------------------
+// --- The placeholder -----------------------------------------------------
 //
-// A panel with no photo is never left blank: it gets a small painted Vice
-// scene — a sunset gradient, a low sun disc, a dark shoreline and palm
-// silhouettes — drawn entirely in code, tinted per panel so a cover built
-// from placeholders alone still reads as finished art.
+// An empty panel is never a hole in the cover. It gets a little painted
+// Vice scene instead — sunset sky, a low sun, a dark shoreline, palm
+// silhouettes — all drawn in code and shifted slightly per panel, so
+// even a cover made of nothing but placeholders looks finished.
 
-// Deterministic little RNG (LCG) so the placeholder stars never flicker
-// between renders or between screenshot runs.
+// A tiny deterministic RNG (an LCG), so the placeholder's stars land in
+// the same places on every render and every screenshot run.
 function seededRandom(seed) {
   let s = (seed * 2654435761) % 4294967296;
   return () => {
@@ -99,42 +101,40 @@ function seededRandom(seed) {
 }
 
 function drawPalm(ctx, baseX, baseY, height, lean, colour) {
-  const topX = baseX + lean * height;
-  const topY = baseY - height;
+  const crownX = baseX + lean * height;
+  const crownY = baseY - height;
   ctx.strokeStyle = colour;
   ctx.fillStyle = colour;
   ctx.lineCap = 'round';
-  // Trunk: a gentle curve leaning toward the top point.
+  // Trunk: one curved stroke rising to the crown, leaning as it goes.
   ctx.lineWidth = Math.max(2, height * 0.045);
   ctx.beginPath();
   ctx.moveTo(baseX, baseY);
-  ctx.quadraticCurveTo(baseX + lean * height * 0.3, baseY - height * 0.6, topX, topY);
+  ctx.quadraticCurveTo(baseX + lean * height * 0.3, baseY - height * 0.6, crownX, crownY);
   ctx.stroke();
-  // Fronds: six arcs drooping out of the crown.
+  // Fronds: six arcs fanning out of the crown and drooping at the tips.
   ctx.lineWidth = Math.max(1.5, height * 0.022);
   for (let i = 0; i < 6; i++) {
-    const angle = Math.PI * (0.08 + (i / 5) * 0.84); // fan across the top
+    const angle = Math.PI * (0.08 + (i / 5) * 0.84);
     const reach = height * (0.34 + (i % 2) * 0.08);
-    const endX = topX + Math.cos(angle) * reach * (angle < Math.PI / 2 ? 1 : -1) * -1;
-    const endY = topY + Math.sin(angle) * reach * 0.55 + height * 0.1;
-    const midX = topX + (endX - topX) * 0.5;
-    const midY = topY - height * 0.16;
+    const endX = crownX + Math.cos(angle) * reach * (angle < Math.PI / 2 ? 1 : -1) * -1;
+    const endY = crownY + Math.sin(angle) * reach * 0.55 + height * 0.1;
     ctx.beginPath();
-    ctx.moveTo(topX, topY);
-    ctx.quadraticCurveTo(midX, midY, endX, endY);
+    ctx.moveTo(crownX, crownY);
+    ctx.quadraticCurveTo(crownX + (endX - crownX) * 0.5, crownY - height * 0.16, endX, endY);
     ctx.stroke();
   }
-  // Coconuts.
+  // A pair of coconuts tucked under the crown.
   ctx.beginPath();
-  ctx.arc(topX - height * 0.03, topY + height * 0.03, height * 0.028, 0, Math.PI * 2);
-  ctx.arc(topX + height * 0.035, topY + height * 0.045, height * 0.024, 0, Math.PI * 2);
+  ctx.arc(crownX - height * 0.03, crownY + height * 0.03, height * 0.028, 0, Math.PI * 2);
+  ctx.arc(crownX + height * 0.035, crownY + height * 0.045, height * 0.024, 0, Math.PI * 2);
   ctx.fill();
 }
 
 export function drawPlaceholder(ctx, x, y, w, h, variant = 0) {
   const rand = seededRandom(variant + 7);
-  // Sky: indigo at the top melting through magenta and orange to gold at
-  // the horizon, a little past halfway down.
+  // Sky first: indigo up top, melting through magenta and orange into
+  // gold right where the horizon sits, a little past halfway down.
   const horizon = y + h * 0.64;
   const sky = ctx.createLinearGradient(0, y, 0, horizon);
   sky.addColorStop(0, '#22104d');
@@ -145,20 +145,17 @@ export function drawPlaceholder(ctx, x, y, w, h, variant = 0) {
   ctx.fillStyle = sky;
   ctx.fillRect(x, y, w, h);
 
-  // Early stars in the indigo band.
+  // The first stars, pricked into the indigo band.
   ctx.fillStyle = 'rgba(255,255,255,0.8)';
   for (let i = 0; i < 14; i++) {
-    const sx = x + rand() * w;
-    const sy = y + rand() * h * 0.3;
-    const r = 0.6 + rand() * 1.1;
     ctx.globalAlpha = 0.25 + rand() * 0.55;
     ctx.beginPath();
-    ctx.arc(sx, sy, r, 0, Math.PI * 2);
+    ctx.arc(x + rand() * w, y + rand() * h * 0.3, 0.6 + rand() * 1.1, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.globalAlpha = 1;
 
-  // Sun disc sitting on the horizon, gold core to pink rim, with a glow.
+  // The sun, resting on the horizon: gold heart, pink rim, soft glow.
   const sunR = Math.min(w, h) * 0.21;
   const sunX = x + w * (0.5 + (variant % 3 - 1) * 0.14);
   ctx.save();
@@ -174,7 +171,7 @@ export function drawPlaceholder(ctx, x, y, w, h, variant = 0) {
   ctx.fill();
   ctx.restore();
 
-  // Shoreline silhouette across the bottom.
+  // The shoreline: a dark, gently uneven silhouette across the bottom.
   ctx.fillStyle = '#180a30';
   ctx.beginPath();
   ctx.moveTo(x, horizon + h * 0.02);
@@ -185,7 +182,7 @@ export function drawPlaceholder(ctx, x, y, w, h, variant = 0) {
   ctx.closePath();
   ctx.fill();
 
-  // Palms: one tall at a golden-ratio point, one shorter companion.
+  // Two palms anchor the scene: a tall one, then a shorter companion.
   const tall = h * 0.52;
   drawPalm(ctx, x + w * 0.24, y + h * 0.99, tall, 0.16, '#12061f');
   drawPalm(ctx, x + w * 0.82, y + h * 0.99, tall * 0.62, -0.2, '#12061f');

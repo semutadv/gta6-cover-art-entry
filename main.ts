@@ -1,12 +1,12 @@
 // Vice Cover Studio — the make.fun entry program (Node 22, standard
-// library only).
+// library only, no dependencies).
 //
-// The app itself is the static site in app/: open app/index.html in a
-// desktop browser and it runs entirely offline, turning photos into
-// multi-panel cover art. This program hands the entry in — it copies app/
-// and screenshots/ into the output directory and writes dossier.json
-// there with the vendored buildDossier, capped exactly as the
-// gta6-cover-art-01 gate requires.
+// The entry itself is the static site in app/: open app/index.html in a
+// desktop browser and the studio runs entirely offline, turning photos
+// into multi-panel cover art. This program is the hand-in. It copies
+// app/ and screenshots/ into the output directory and writes a
+// dossier.json there, built by the vendored buildDossier and capped
+// exactly as the gta6-cover-art-01 gate demands.
 //
 // Local check:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts

@@ -1,11 +1,12 @@
-// shots.js — deterministic screenshot scenes.
+// shots.js — the deterministic screenshot scenes.
 //
-// The screenshot harness loads the app with ?shot=cover or ?shot=editor
-// plus layout / grade / title parameters (see shots.json at the repo
-// root). This module turns those parameters into a fixed scene: the
-// built-in samples in the planned arrangement, the second panel selected
-// in editor scenes — no randomness anywhere, so the same URL always
-// paints the same pixels.
+// The capture harness opens the app with ?shot=cover or ?shot=editor
+// plus layout / grade / title parameters (the scene list lives in
+// shots.json at the repo root). This module folds those parameters
+// into the state: the built-in samples dealt into the requested
+// layout, and — for editor scenes — a panel left selected, the way a
+// user's screen looks mid-edit. Nothing here is random, so the same
+// URL always paints the same pixels.
 
 import { state, assignPlannedPhotos } from './state.js';
 
@@ -28,10 +29,11 @@ export function configureFromParams(params) {
   const pos = params.get('letterPos');
   if (pos === 'top' || pos === 'bottom') state.letterPos = pos;
 
-  // Samples are already loaded by main.js; plan them into the layout.
+  // main.js has already loaded the samples; deal them into the layout.
   assignPlannedPhotos();
 
-  // Editor scenes show a panel mid-edit, the way a user's screen looks.
+  // Leave the second panel selected (the only panel, for Solo), so an
+  // editor screenshot shows the selection outline at work.
   const count = state.layoutId === 'solo' ? 1 : 2;
   state.selectedPanel = Math.min(1, count - 1);
 }

@@ -1,10 +1,11 @@
-// state.js — the single source of truth for the cover being edited.
+// state.js — everything about the cover being edited, in one place.
 //
-// Everything the renderer needs lives in one plain object: the active
-// layout, the loaded photos, what sits in each panel (photo, pan, zoom,
-// fit mode, optional grade override), the lettering, and the export size.
-// Mutations go through update(), which notifies subscribers once so the
-// editor controls and the preview never drift apart.
+// A single plain object holds the chosen layout and grade, the loaded
+// photos, the per-panel arrangement (which photo, how it is panned and
+// zoomed, fit mode, an optional grade of its own), the lettering and the
+// export size. Nothing mutates it bare: changes go through update(),
+// which fires the subscribers once, so the sidebar controls and the
+// canvas preview can never show two different covers.
 
 export const LAYOUT_IDS = ['classic', 'trio', 'duo', 'solo'];
 export const GRADE_IDS = ['vice', 'neon', 'golden', 'noir', 'original'];
@@ -17,10 +18,11 @@ export const EXPORT_SIZES = {
 };
 
 export const MAX_PHOTOS = 6;
-export const PANEL_SLOTS = 5; // the Classic layout has the most panels
+export const PANEL_SLOTS = 5; // no layout has more panels than Classic
 
-// Per-slot framing, so when one photo fills several panels each crop still
-// looks like its own shot instead of a copy-paste.
+// Each slot starts with its own framing, so when a single photo fills
+// several panels at once, every crop reads as a different shot of the
+// same scene rather than the same shot repeated.
 const SLOT_FRAMING = [
   { x: 0, y: 0, zoom: 1 },
   { x: -0.35, y: 0.1, zoom: 1.2 },
@@ -31,8 +33,8 @@ const SLOT_FRAMING = [
 
 export function blankPanel(slot) {
   const f = SLOT_FRAMING[slot % SLOT_FRAMING.length];
-  // Pan x/y run from -1 to 1: 0 centres the photo, the extremes push it
-  // fully to one side of the overflow the crop creates.
+  // Pan is normalised to -1..1: 0 centres the photo in the panel, and
+  // ±1 spends all of the slack the crop leaves on one side.
   return { photoId: null, x: f.x, y: f.y, zoom: f.zoom, fit: 'fill', gradeId: null };
 }
 
@@ -46,7 +48,7 @@ export const state = {
   letterGradient: true,
   exportSizeId: 'post',
   selectedPanel: 0,
-  photos: [], // { id, name, img } — img is a loaded HTMLImageElement
+  photos: [], // entries are { id, name, img } with img a loaded HTMLImageElement
   panels: Array.from({ length: PANEL_SLOTS }, (_, i) => blankPanel(i)),
 };
 
@@ -62,7 +64,7 @@ export function emit() {
   for (const fn of [...listeners]) fn(state);
 }
 
-// Run a mutation, then notify subscribers exactly once.
+// Apply a mutation, then tell everyone about it exactly once.
 export function update(fn) {
   fn(state);
   emit();
@@ -79,9 +81,9 @@ export function photoById(id) {
   return state.photos.find((p) => p.id === id) || null;
 }
 
-// Which loaded photo (by index) goes into each panel of a layout, so the
-// app — and the screenshot scenes — open on a composed cover, never on
-// empty panels.
+// Which loaded photo (counted by index) belongs in each panel of a
+// layout. This is what makes the app — and every screenshot scene —
+// open on a composed cover instead of a grid of empty frames.
 const PHOTO_PLAN = {
   classic: [0, 1, 0, 1, 0],
   trio: [0, 1, 0],
@@ -93,8 +95,8 @@ export function planFor(layoutId) {
   return PHOTO_PLAN[layoutId] || PHOTO_PLAN.classic;
 }
 
-// Fill the current layout's panels from the loaded photos, resetting each
-// panel's framing to its slot default.
+// Deal the loaded photos into the current layout's panels, resetting
+// each panel's framing back to its slot default as we go.
 export function assignPlannedPhotos() {
   const plan = planFor(state.layoutId);
   state.panels.forEach((panel, i) => {

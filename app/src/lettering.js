@@ -1,11 +1,13 @@
-// lettering.js — the cover's title and caption, drawn in the genre's
-// style: very heavy condensed capitals, a white or sunset-gradient fill, a
-// thick dark outline, a soft drop shadow and a slight italic skew. A dark
-// scrim fades in behind the type so it stays readable over any photo.
+// lettering.js — the cover's title and caption, set the way the genre
+// sets them: very heavy condensed capitals, a white or sunset-gradient
+// fill, a thick dark outline, a soft drop shadow and a slight italic
+// lean. Behind the type, a dark scrim fades in so the words stay
+// readable no matter what the photo underneath is doing.
 
 const FONT_STACK = '"Arial Narrow", "Liberation Sans Narrow", Impact, "Helvetica Neue", Arial, sans-serif';
 
-// Shrink from startPx until the text fits maxWidth; returns the size used.
+// Shrink from startPx until the text fits inside maxWidth, and return
+// the size that fit (never below 10px).
 function fitSize(ctx, text, weight, maxWidth, startPx) {
   let size = Math.max(10, startPx);
   while (size > 10) {
@@ -17,19 +19,21 @@ function fitSize(ctx, text, weight, maxWidth, startPx) {
 }
 
 function setLetterSpacing(ctx, px) {
-  // Canvas letterSpacing is supported in Chromium; elsewhere it is a
-  // harmless no-op property assignment.
+  // Chromium honours canvas letterSpacing; everywhere else this is a
+  // harmless assignment to a property nothing reads.
   try {
     ctx.letterSpacing = `${px}px`;
   } catch {
-    /* older engines: spacing is decorative only */
+    /* spacing is decoration; the cover works without it */
   }
 }
 
+// One line of display type: outlined first under a soft shadow, then
+// filled, all sheared by the genre's slight italic skew.
 function drawLine(ctx, text, cx, baseline, px, weight, fill, strokeWidth) {
   ctx.save();
   ctx.translate(cx, baseline);
-  ctx.transform(1, 0, -0.08, 1, 0, 0); // the slight italic skew
+  ctx.transform(1, 0, -0.08, 1, 0, 0);
   ctx.font = `${weight} ${px}px ${FONT_STACK}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
@@ -71,13 +75,16 @@ export function drawLettering(ctx, W, H, opts) {
   let captionPx = 0;
   if (title) titlePx = fitSize(ctx, title, 900, W * 0.92, H * 0.17 * (opts.letterSize || 1));
   if (caption) {
+    // Measure the caption with its tracking applied, then clear it so
+    // the measuring does not leak into whatever draws next.
     setLetterSpacing(ctx, titlePx * 0.1);
     captionPx = fitSize(ctx, caption, 700, W * 0.9, Math.max(13, titlePx * 0.3 || H * 0.045));
     setLetterSpacing(ctx, 0);
   }
 
-  // Baselines: at the top the title leads and the caption follows under it;
-  // at the bottom the caption sits on the edge and the title above it.
+  // Baselines. At the top, the title leads and the caption tucks in
+  // under it; at the bottom, the caption sits on the edge with the
+  // title stacked above it.
   let titleBase = 0;
   let captionBase = 0;
   if (top) {

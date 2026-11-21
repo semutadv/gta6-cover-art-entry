@@ -1,11 +1,12 @@
-// editor.js — wires the page's controls to the cover state and paints the
-// live preview.
+// editor.js — connects the page's controls to the cover state and
+// keeps the live preview painted.
 //
-// The preview canvas shows the cover at the chosen export aspect; the
-// exact same renderCover() call paints the exports, so the preview never
-// lies. Panels are picked by clicking them, photos are dragged inside
-// their panel to reposition, and every control writes through state.js's
-// update() so one change notification repaints everything.
+// The preview shows the cover at the chosen export aspect, and it is
+// painted by the very same renderCover() call that produces the PNG
+// exports, so the preview can never promise something the export does
+// not deliver. Clicking a panel selects it; dragging inside a panel
+// slides its photo around; and every control writes through state.js's
+// update(), so a single change notification repaints everything.
 
 import {
   state, onChange, update, addPhoto, photoById, assignPlannedPhotos,
@@ -49,7 +50,7 @@ export function initEditor(opts = {}) {
     if (els.status) els.status.textContent = msg;
   }
 
-  // --- Rendering -----------------------------------------------------------
+  // --- Painting the preview ------------------------------------------------
 
   function render() {
     const wrap = canvas.parentElement;
@@ -64,8 +65,10 @@ export function initEditor(opts = {}) {
     ctx.fillRect(0, 0, W, H);
     let rect;
     if (opts.fullBleed) {
+      // Screenshot cover scenes: the cover is the whole window.
       rect = { x: 0, y: 0, w: W, h: H };
     } else {
+      // Fit the export aspect inside the stage, with a margin to spare.
       const size = EXPORT_SIZES[state.exportSizeId];
       const aspect = size.w / size.h;
       let w = W * 0.95;
@@ -77,7 +80,7 @@ export function initEditor(opts = {}) {
       rect = { x: (W - w) / 2, y: (H - h) / 2, w, h };
     }
     coverRect = rect;
-    // A soft drop shadow lifts the cover off the editor backdrop.
+    // A soft shadow grounds the cover on the editor's dark backdrop.
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,0.55)';
     ctx.shadowBlur = Math.round(rect.w * 0.03);
@@ -95,6 +98,7 @@ export function initEditor(opts = {}) {
     ctx.save();
     ctx.translate(rect.x, rect.y);
     panelPath(ctx, points, rect.w, rect.h);
+    // A cyan dashed outline, kissed with a thin magenta inner stroke.
     ctx.strokeStyle = '#22d3ee';
     ctx.lineWidth = Math.max(2, rect.w * 0.004);
     ctx.setLineDash([rect.w * 0.02, rect.w * 0.012]);
@@ -106,6 +110,7 @@ export function initEditor(opts = {}) {
     ctx.restore();
   }
 
+  // Coalesce bursts of changes into one repaint per animation frame.
   function schedule() {
     if (raf) return;
     raf = requestAnimationFrame(() => {
@@ -115,7 +120,7 @@ export function initEditor(opts = {}) {
     });
   }
 
-  // --- Control sync --------------------------------------------------------
+  // --- Keeping the controls honest -------------------------------------------
 
   function syncControls() {
     document.querySelectorAll('[data-layout]').forEach((b) => {
@@ -135,6 +140,7 @@ export function initEditor(opts = {}) {
     }
     const panel = state.panels[state.selectedPanel];
     if (panel) {
+      // Never fight the user for a control they are holding right now.
       if (document.activeElement !== els.zoom) els.zoom.value = String(panel.zoom);
       if (els.zoomVal) els.zoomVal.textContent = `${panel.zoom.toFixed(2)}×`;
       if (document.activeElement !== els.panelGrade) {
@@ -145,6 +151,7 @@ export function initEditor(opts = {}) {
   }
 
   function renderThumbs() {
+    // Rebuild the strip only when something it shows has changed.
     const key = state.photos.map((p) => p.id).join(',') + '|' + state.selectedPanel
       + '|' + state.panels.map((p) => p.photoId || 0).join(',');
     if (key === lastThumbKey) return;
@@ -178,7 +185,7 @@ export function initEditor(opts = {}) {
     }
   }
 
-  // --- Photo intake --------------------------------------------------------
+  // --- Bringing photos in ------------------------------------------------------
 
   async function handleFiles(fileList) {
     const files = [...fileList].filter((f) => f.type.startsWith('image/'));
@@ -196,7 +203,7 @@ export function initEditor(opts = {}) {
         const img = await loadImageFromUrl(url);
         const photo = addPhoto(file.name || 'Photo', img);
         if (!photo) break;
-        // A fresh photo goes straight into the first empty panel.
+        // A newcomer goes straight into the first panel still empty.
         update(() => {
           const layout = layoutById(state.layoutId);
           for (let i = 0; i < layout.panels.length; i++) {
@@ -214,7 +221,7 @@ export function initEditor(opts = {}) {
     schedule();
   }
 
-  // --- Pointer work on the canvas ------------------------------------------
+  // --- Pointer work on the canvas -------------------------------------------------
 
   function toCoverFractions(ev) {
     const r = canvas.getBoundingClientRect();
@@ -229,6 +236,7 @@ export function initEditor(opts = {}) {
   canvas.addEventListener('pointerdown', (ev) => {
     const { fx, fy } = toCoverFractions(ev);
     const layout = layoutById(state.layoutId);
+    // Topmost panel wins, so test from the last panel backwards.
     for (let i = layout.panels.length - 1; i >= 0; i--) {
       if (pointInPolygon(fx, fy, layout.panels[i])) {
         if (state.selectedPanel !== i) update(() => { state.selectedPanel = i; });
@@ -241,7 +249,7 @@ export function initEditor(opts = {}) {
           origY: panel.y,
           bounds: panelBounds(layout.panels[i]),
         };
-        try { canvas.setPointerCapture(ev.pointerId); } catch { /* noop */ }
+        try { canvas.setPointerCapture(ev.pointerId); } catch { /* capture is a nicety */ }
         canvas.style.cursor = 'grabbing';
         break;
       }
@@ -252,8 +260,8 @@ export function initEditor(opts = {}) {
     if (!drag) return;
     const { fx, fy } = toCoverFractions(ev);
     const panel = state.panels[drag.panel];
-    // Pan runs -1..1 across the overflow, so dragging the width of the
-    // panel sweeps most of the range.
+    // Pan spans -1..1 across the crop's slack, so dragging the width of
+    // the panel sweeps most of the available range.
     const nx = clamp(drag.origX + ((fx - drag.startFx) / Math.max(0.05, drag.bounds.w)) * 1.6, -1, 1);
     const ny = clamp(drag.origY + ((fy - drag.startFy) / Math.max(0.05, drag.bounds.h)) * 1.6, -1, 1);
     update(() => {
@@ -269,7 +277,7 @@ export function initEditor(opts = {}) {
   canvas.addEventListener('pointerup', endDrag);
   canvas.addEventListener('pointercancel', endDrag);
 
-  // --- Controls --------------------------------------------------------------
+  // --- The sidebar controls ----------------------------------------------------------
 
   document.querySelectorAll('[data-layout]').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -338,7 +346,8 @@ export function initEditor(opts = {}) {
     els.fileInput.value = '';
   });
 
-  // Drag-and-drop anywhere on the window.
+  // Drag-and-drop works anywhere on the window; a depth counter keeps
+  // the overlay up while the pointer crosses child elements.
   let dragDepth = 0;
   window.addEventListener('dragenter', (ev) => {
     ev.preventDefault();
@@ -358,7 +367,7 @@ export function initEditor(opts = {}) {
     if (ev.dataTransfer) handleFiles(ev.dataTransfer.files);
   });
 
-  // --- Export ----------------------------------------------------------------
+  // --- Export ---------------------------------------------------------------------------
 
   function exportPNG(sizeId) {
     const size = EXPORT_SIZES[sizeId];
@@ -390,7 +399,7 @@ export function initEditor(opts = {}) {
     setStatus('Exporting all four sizes, one after another…');
   });
 
-  // --- Surprise --------------------------------------------------------------
+  // --- Surprise me -------------------------------------------------------------------------
 
   $('surpriseBtn').addEventListener('click', () => {
     const layouts = ['classic', 'trio', 'duo', 'solo'];
@@ -399,7 +408,7 @@ export function initEditor(opts = {}) {
       state.layoutId = layouts[Math.floor(Math.random() * layouts.length)];
       state.gradeId = grades[Math.floor(Math.random() * grades.length)];
       assignPlannedPhotos();
-      // Then shuffle the arrangement and loosen the framing.
+      // Then deal the photos back out at random and loosen every crop.
       const ids = state.photos.map((p) => p.id);
       state.panels.forEach((panel) => {
         if (ids.length) panel.photoId = ids[Math.floor(Math.random() * ids.length)];
@@ -412,7 +421,7 @@ export function initEditor(opts = {}) {
     setStatus('Surprise cover shuffled — tweak it or export it as it stands.');
   });
 
-  // --- Keyboard ----------------------------------------------------------------
+  // --- Keyboard --------------------------------------------------------------------------------
 
   window.addEventListener('keydown', (ev) => {
     const target = ev.target;
