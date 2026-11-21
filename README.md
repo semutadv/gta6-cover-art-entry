@@ -1,8 +1,8 @@
 # Vice Cover Studio
 
 [![gta6-cover-art-01](https://make.fun/badge/gta6-cover-art-01.svg)](https://make.fun/bounty/gta6-cover-art-01)
-[![rank](https://make.fun/badge/gta6-cover-art-01/semutadv/gta6-coverart-entry/rank.svg)](https://make.fun/bounty/gta6-cover-art-01)
-[![reward](https://make.fun/badge/gta6-cover-art-01/semutadv/gta6-coverart-entry/reward.svg)](https://make.fun/bounty/gta6-cover-art-01)
+[![rank](https://make.fun/badge/gta6-cover-art-01/semutadv/gta6-cover-art-entry/rank.svg)](https://make.fun/bounty/gta6-cover-art-01)
+[![reward](https://make.fun/badge/gta6-cover-art-01/semutadv/gta6-cover-art-entry/reward.svg)](https://make.fun/bounty/gta6-cover-art-01)
 
 Vice Cover Studio turns your own photos into cover art in the spirit of the
 GTA 6 posters: a multi-panel grid, a Vice City sunset grade, and heavy
