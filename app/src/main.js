@@ -1,64 +1,72 @@
-// main.js — boots Vice Cover Studio.
-//
-// The two built-in sample photos are loaded and dealt into the Classic
-// layout, so the first thing anyone sees is a finished cover, not an
-// empty tool. Then the editor is wired up. When the URL carries a
-// ?shot= parameter, a deterministic screenshot scene from shots.js is
-// staged instead, and window.__shotReady is flagged once the scene has
-// had two full frames to paint.
+// Vice Cover Studio — boot.
+// Loads the built-in samples, opens the editor on the finished-looking
+// default cover, and handles screenshot mode: ?shot=cover renders only the
+// finished cover, ?shot=editor shows the full editor with a staged cover.
+// Both set window.__shotReady once the cover is painted.
 
-import { state, registerPhoto, dealPhotos, notify } from './state.js';
-import { startEditor } from './editor.js';
-import { applySceneParams } from './shots.js';
+import { createStore, freshCover, loadAllPhotos } from './state.js';
+import { mountEditor } from './editor.js';
+import { renderCover } from './render.js';
+import { shotPatch, markShotReady } from './shots.js';
 
-const BUILTIN_SHOTS = [
-  { name: 'Boulevard sample', src: 'samples/boulevard.jpg' },
-  { name: 'Pier sample', src: 'samples/pier.jpg' },
-];
+const store = createStore(freshCover());
 
-function loadPicture(src) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error(`could not load ${src}`));
-    img.src = src;
-  });
-}
-
-async function start() {
+async function boot() {
   const params = new URLSearchParams(location.search);
   const shot = params.get('shot');
+  const isCoverShot = shot === 'cover';
 
-  for (const sample of BUILTIN_SHOTS) {
-    const img = await loadPicture(sample.src);
-    if (img.decode) {
-      try { await img.decode(); } catch { /* decoded enough to draw already */ }
-    }
-    registerPhoto(sample.name, img);
+  if (isCoverShot) document.body.classList.add('cover-only');
+
+  const canvas = document.getElementById('stage');
+  if (shot) {
+    store.update(shotPatch(params));
+  }
+  await loadAllPhotos(store);
+
+  if (isCoverShot) {
+    const w = Number(params.get('w')) || 1080;
+    const h = Number(params.get('h')) || 1080;
+    renderCover(canvas, store.get(), w, h);
+    markShotReady();
+    return;
   }
 
-  if (shot) {
-    document.body.classList.add('shot', `shot-${shot}`);
-    applySceneParams(params);
-  } else {
-    dealPhotos();
-  }
-
-  const editor = startEditor({ fullBleed: shot === 'cover' });
-  notify();
-  editor.paintNow();
-
-  if (shot) {
-    // Two animation frames: the second one guarantees the scene is
-    // fully painted before the harness takes its picture.
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      window.__shotReady = true;
-    }));
+  const els = {
+    canvas,
+    status: document.getElementById('statusLine'),
+    tray: document.getElementById('tray'),
+    presetRow: document.getElementById('presetRow'),
+    layoutRow: document.getElementById('layoutRow'),
+    gradeRow: document.getElementById('gradeRow'),
+    sizeRow: document.getElementById('sizeRow'),
+    uploadInput: document.getElementById('uploadInput'),
+    dropZone: document.getElementById('dropZone'),
+    zoomRange: document.getElementById('zoomRange'),
+    zoomLabel: document.getElementById('zoomLabel'),
+    fitBtn: document.getElementById('fitBtn'),
+    flipBtn: document.getElementById('flipBtn'),
+    panelGrade: document.getElementById('panelGrade'),
+    panelNote: document.getElementById('panelNote'),
+    titleInput: document.getElementById('titleInput'),
+    captionInput: document.getElementById('captionInput'),
+    posTop: document.getElementById('posTop'),
+    posBottom: document.getElementById('posBottom'),
+    sizeRange: document.getElementById('sizeRange'),
+    gradToggle: document.getElementById('gradToggle'),
+    surpriseBtn: document.getElementById('surpriseBtn'),
+    exportBtn: document.getElementById('exportBtn'),
+    exportAllBtn: document.getElementById('exportAllBtn'),
+  };
+  mountEditor(store, els);
+  if (shot === 'editor') {
+    // Give the editor one frame to paint before declaring the shot ready.
+    requestAnimationFrame(() => markShotReady());
   }
 }
 
-start().catch((err) => {
+boot().catch((err) => {
   console.error(err);
-  const el = document.getElementById('noticeLine');
-  if (el) el.textContent = 'The studio hit a snag starting up — reload to try again.';
+  const line = document.getElementById('statusLine');
+  if (line) line.textContent = `Could not start the studio: ${err.message}`;
 });
