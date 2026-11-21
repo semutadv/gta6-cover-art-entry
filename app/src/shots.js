@@ -8,17 +8,17 @@
 // user's screen looks mid-edit. Nothing here is random, so the same
 // URL always paints the same pixels.
 
-import { state, assignPlannedPhotos } from './state.js';
+import { state, dealPhotos } from './state.js';
 
-const VALID_LAYOUTS = ['classic', 'trio', 'duo', 'solo'];
-const VALID_GRADES = ['vice', 'neon', 'golden', 'noir', 'original'];
+const KNOWN_LAYOUTS = ['classic', 'trio', 'duo', 'solo'];
+const KNOWN_GRADES = ['vice', 'neon', 'golden', 'noir', 'original'];
 
-export function configureFromParams(params) {
+export function applySceneParams(params) {
   const layout = params.get('layout');
-  if (layout && VALID_LAYOUTS.includes(layout)) state.layoutId = layout;
+  if (layout && KNOWN_LAYOUTS.includes(layout)) state.layoutId = layout;
 
   const grade = params.get('grade');
-  if (grade && VALID_GRADES.includes(grade)) state.gradeId = grade;
+  if (grade && KNOWN_GRADES.includes(grade)) state.gradeId = grade;
 
   const title = params.get('title');
   if (title !== null) state.title = title;
@@ -26,11 +26,11 @@ export function configureFromParams(params) {
   const caption = params.get('caption');
   if (caption !== null) state.caption = caption;
 
-  const pos = params.get('letterPos');
-  if (pos === 'top' || pos === 'bottom') state.letterPos = pos;
+  const spot = params.get('letterPos');
+  if (spot === 'top' || spot === 'bottom') state.letterPos = spot;
 
   // main.js has already loaded the samples; deal them into the layout.
-  assignPlannedPhotos();
+  dealPhotos();
 
   // Leave the second panel selected (the only panel, for Solo), so an
   // editor screenshot shows the selection outline at work.

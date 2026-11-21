@@ -7,16 +7,16 @@
 // staged instead, and window.__shotReady is flagged once the scene has
 // had two full frames to paint.
 
-import { state, addPhoto, assignPlannedPhotos, emit } from './state.js';
-import { initEditor } from './editor.js';
-import { configureFromParams } from './shots.js';
+import { state, registerPhoto, dealPhotos, notify } from './state.js';
+import { startEditor } from './editor.js';
+import { applySceneParams } from './shots.js';
 
-const SAMPLES = [
+const BUILTIN_SHOTS = [
   { name: 'Boulevard sample', src: 'samples/boulevard.jpg' },
   { name: 'Pier sample', src: 'samples/pier.jpg' },
 ];
 
-function loadImage(src) {
+function loadPicture(src) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
@@ -25,28 +25,28 @@ function loadImage(src) {
   });
 }
 
-async function boot() {
+async function start() {
   const params = new URLSearchParams(location.search);
   const shot = params.get('shot');
 
-  for (const sample of SAMPLES) {
-    const img = await loadImage(sample.src);
+  for (const sample of BUILTIN_SHOTS) {
+    const img = await loadPicture(sample.src);
     if (img.decode) {
       try { await img.decode(); } catch { /* decoded enough to draw already */ }
     }
-    addPhoto(sample.name, img);
+    registerPhoto(sample.name, img);
   }
 
   if (shot) {
     document.body.classList.add('shot', `shot-${shot}`);
-    configureFromParams(params);
+    applySceneParams(params);
   } else {
-    assignPlannedPhotos();
+    dealPhotos();
   }
 
-  const editor = initEditor({ fullBleed: shot === 'cover' });
-  emit();
-  editor.renderNow();
+  const editor = startEditor({ fullBleed: shot === 'cover' });
+  notify();
+  editor.paintNow();
 
   if (shot) {
     // Two animation frames: the second one guarantees the scene is
@@ -57,8 +57,8 @@ async function boot() {
   }
 }
 
-boot().catch((err) => {
+start().catch((err) => {
   console.error(err);
-  const el = document.getElementById('status');
+  const el = document.getElementById('noticeLine');
   if (el) el.textContent = 'The studio hit a snag starting up — reload to try again.';
 });
