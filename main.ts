@@ -1,38 +1,33 @@
-// Vice Cover Studio — entry program.
-// Copies app/ and screenshots/ next to this file into the output directory
-// (MAKEFUN_OUTPUT_DIR, or /output) and writes dossier.json there, built by
-// the shipped vendor/makefun-app.ts dossier builder under the scorer caps.
-
+// Vice Cover Studio — the entry program.
+// Copies app/ and screenshots/ from beside this file into the output
+// directory (MAKEFUN_OUTPUT_DIR, or /output), then writes dossier.json there
+// with buildDossier from ./vendor/makefun-app.ts, using the competition's
+// caps. Run: MAKEFUN_OUTPUT_DIR=out node main.ts
 import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-app.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const outDir = resolve(process.env.MAKEFUN_OUTPUT_DIR || '/output');
+const out = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 
-// The scorer's caps for this competition, named so the dossier call reads
-// as a policy instead of a magic object.
-const DOSSIER_CAPS = {
+// Keep the output directory exactly the entry: wipe it first so a stale
+// screenshot or app file from an earlier run can never leak into the dossier.
+rmSync(out, { recursive: true, force: true });
+mkdirSync(out, { recursive: true });
+
+for (const name of ['app', 'screenshots']) {
+  const src = join(here, name);
+  if (existsSync(src)) cpSync(src, join(out, name), { recursive: true });
+}
+
+const dossier = buildDossier(out, {
   text_max_bytes: 163840,
   screenshots: { max: 4, max_bytes: 262144 },
   app_max_files: 993,
   app_max_bytes: 50331648,
   app_path_max_bytes: 1000,
-};
+});
 
-function copyTree(name: string): void {
-  const from = join(here, name);
-  const to = join(outDir, name);
-  if (!existsSync(from)) return;
-  rmSync(to, { recursive: true, force: true });
-  cpSync(from, to, { recursive: true });
-}
-
-mkdirSync(outDir, { recursive: true });
-copyTree('app');
-copyTree('screenshots');
-
-const dossier = buildDossier(outDir, DOSSIER_CAPS);
-writeFileSync(join(outDir, 'dossier.json'), dossier);
-console.log(`dossier written: ${join(outDir, 'dossier.json')} (${dossier.length} bytes)`);
+writeFileSync(join(out, 'dossier.json'), dossier);
+console.log(`dossier written: ${join(out, 'dossier.json')} (${dossier.length} bytes)`);

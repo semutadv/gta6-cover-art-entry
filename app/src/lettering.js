@@ -1,81 +1,93 @@
 // Vice Cover Studio — lettering.
-// The title and caption are drawn on the canvas in the poster's voice:
-// very heavy condensed uppercase, white fill with a thick dark outline,
-// a soft drop shadow and a slight italic skew. The title can take a
-// sunset pink-to-gold gradient fill instead of plain white.
+// The title and caption are drawn straight onto the cover canvas in the
+// genre's style: very heavy condensed uppercase, white fill with a thick dark
+// outline and a soft drop shadow, a slight italic skew, and an optional
+// sunset gradient fill. Nothing here needs a font file — the system stack
+// ("Arial Narrow", Impact and friends) carries the look.
 
-const FONT_STACK = '"Arial Narrow", Impact, "Helvetica Neue Condensed", "Franklin Gothic Medium", sans-serif';
+export function letteringFont(px, italic) {
+  const skew = italic ? 'italic ' : '';
+  return `${skew}900 ${px}px "Arial Narrow", Impact, "Helvetica Neue", "Franklin Gothic Medium", sans-serif`;
+}
 
-export function drawLettering(ctx, box, opts) {
-  const { title, caption, letterPos, letterSize, letterGradient } = opts;
-  const pad = box.w * 0.05;
-  const innerW = box.w - pad * 2;
-  const titlePx = Math.round((box.w * 0.115 * letterSize));
-  const capPx = Math.round(titlePx * 0.32);
-  const gap = Math.round(titlePx * 0.22);
+// Draw title + caption inside `band` ({x, y, w, h}). The title is fitted to
+// the band width by shrinking the font until it fits, then the caption sits
+// just below it in tracked-out capitals.
+export function drawLettering(ctx, opts) {
+  const { band, title, caption, size = 1, gradient = true, pos = 'top' } = opts;
+  const pad = band.w * 0.04;
+  const maxW = band.w - pad * 2;
 
   ctx.save();
   ctx.textAlign = 'center';
-  ctx.textBaseline = 'alphabetic';
+  ctx.textBaseline = 'middle';
 
-  const blockH = titlePx + gap + capPx;
-  const topY = letterPos === 'top' ? box.y + box.h * 0.045 + titlePx : box.y + box.h - box.h * 0.045 - blockH + titlePx;
-  const capY = topY + gap + capPx;
-
-  // A faint dark wash behind the lettering so it reads over any photo.
-  const washH = blockH + pad * 1.1;
-  const washY = letterPos === 'top' ? box.y : box.y + box.h - washH;
-  const wash = ctx.createLinearGradient(0, washY, 0, washY + washH);
-  if (letterPos === 'top') {
-    wash.addColorStop(0, 'rgba(10, 4, 24, 0.55)');
-    wash.addColorStop(1, 'rgba(10, 4, 24, 0)');
-  } else {
-    wash.addColorStop(0, 'rgba(10, 4, 24, 0)');
-    wash.addColorStop(1, 'rgba(10, 4, 24, 0.55)');
+  // --- title ---
+  let px = band.h * 0.52 * size;
+  ctx.font = letteringFont(px, true);
+  const text = (title || 'VICE COVER').toUpperCase();
+  while (px > 12 && ctx.measureText(text).width > maxW) {
+    px *= 0.92;
+    ctx.font = letteringFont(px, true);
   }
-  ctx.fillStyle = wash;
-  ctx.fillRect(box.x, washY, box.w, washH);
+  const titleY = pos === 'top' ? band.y + band.h * 0.34 : band.y + band.h * 0.4;
+  const cx = band.x + band.w / 2;
 
-  const cx = box.x + box.w / 2;
-  drawSlantedLine(ctx, title, cx, topY, titlePx, true, letterGradient, innerW);
-  drawSlantedLine(ctx, caption, cx, capY, capPx, false, false, innerW);
-  ctx.restore();
-}
-
-function drawSlantedLine(ctx, text, cx, baselineY, px, heavy, gradient, maxW) {
-  if (!text) return;
-  const upper = text.toUpperCase();
   ctx.save();
-  ctx.translate(cx, baselineY);
-  ctx.transform(1, 0, -0.09, 1, 0, 0); // slight italic skew
-  let size = px;
-  ctx.font = `${heavy ? 900 : 700} ${size}px ${FONT_STACK}`;
-  const measured = ctx.measureText(upper).width;
-  if (measured > maxW) {
-    size = Math.floor((size * maxW) / measured);
-    ctx.font = `${heavy ? 900 : 700} ${size}px ${FONT_STACK}`;
-  }
+  ctx.translate(cx, titleY);
+  ctx.transform(1, 0, -0.06, 1, 0, 0); // slight italic skew
+  ctx.shadowColor = 'rgba(20, 4, 40, 0.55)';
+  ctx.shadowBlur = px * 0.12;
+  ctx.shadowOffsetY = px * 0.05;
   ctx.lineJoin = 'round';
   ctx.miterLimit = 2;
-  const outline = Math.max(2, Math.round(size * (heavy ? 0.14 : 0.1)));
-  ctx.lineWidth = outline;
-  ctx.strokeStyle = '#14051f';
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
-  ctx.shadowBlur = Math.round(size * 0.12);
-  ctx.shadowOffsetY = Math.round(size * 0.06);
-  ctx.strokeText(upper, 0, 0);
-  ctx.shadowColor = 'transparent';
-  ctx.shadowBlur = 0;
-  ctx.shadowOffsetY = 0;
   if (gradient) {
-    const grad = ctx.createLinearGradient(0, -size, 0, size * 0.2);
-    grad.addColorStop(0, '#ffd166');
-    grad.addColorStop(0.55, '#ff8fb3');
-    grad.addColorStop(1, '#ffffff');
-    ctx.fillStyle = grad;
+    const g = ctx.createLinearGradient(0, -px * 0.55, 0, px * 0.55);
+    g.addColorStop(0, '#fff6d8');
+    g.addColorStop(0.45, '#ffd166');
+    g.addColorStop(1, '#ff5e78');
+    ctx.fillStyle = g;
   } else {
     ctx.fillStyle = '#ffffff';
   }
-  ctx.fillText(upper, 0, 0);
+  ctx.strokeStyle = 'rgba(24, 6, 44, 0.92)';
+  ctx.lineWidth = Math.max(2, px * 0.14);
+  ctx.strokeText(text, 0, 0);
+  ctx.fillText(text, 0, 0);
   ctx.restore();
+
+  // --- caption ---
+  const cap = (caption || '').toUpperCase();
+  if (cap) {
+    const capPx = Math.max(10, px * 0.24);
+    ctx.font = `700 ${capPx}px "Arial Narrow", Impact, sans-serif`;
+    let shown = cap;
+    while (ctx.measureText(shown).width > maxW && shown.length > 4) {
+      shown = shown.slice(0, -1);
+    }
+    const capY = titleY + px * 0.62;
+    ctx.shadowColor = 'rgba(20, 4, 40, 0.6)';
+    ctx.shadowBlur = capPx * 0.2;
+    ctx.shadowOffsetY = capPx * 0.08;
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = 'rgba(24, 6, 44, 0.9)';
+    ctx.lineWidth = Math.max(1.5, capPx * 0.16);
+    // Letter-spacing by hand: canvas has no tracking, so draw spaced.
+    const spaced = shown.split('').join('\u2009');
+    ctx.strokeText(spaced, cx, capY);
+    ctx.fillText(spaced, cx, capY);
+  }
+  ctx.restore();
+}
+
+// A thin dark strip behind bottom lettering so white type stays readable
+// over bright photos.
+export function drawLetteringScrim(ctx, band, pos) {
+  const g = pos === 'top'
+    ? ctx.createLinearGradient(0, band.y, 0, band.y + band.h)
+    : ctx.createLinearGradient(0, band.y + band.h, 0, band.y);
+  g.addColorStop(0, 'rgba(18, 4, 36, 0.55)');
+  g.addColorStop(1, 'rgba(18, 4, 36, 0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(band.x, band.y, band.w, band.h);
 }

@@ -1,55 +1,52 @@
 // Vice Cover Studio — deterministic screenshot scenes.
-// main.js calls applyShot with the page's query string: a scene sets the
-// layout, grade and lettering, loads the built-in samples into the panels,
-// renders once, and raises window.__shotReady. The same four scenes are
-// listed in shots.json at the repo root.
+// main.js calls stageShot() when the page loads with ?shot=... in the URL.
+// A cover shot renders only the finished cover (no editor chrome); an editor
+// shot shows the full editor with photos loaded and a panel selected. Every
+// scene stages from the built-in samples only, so the same URL always makes
+// the same picture, and sets window.__shotReady when the paint is done.
 
-import { presetPatch, presetById } from './presets.js';
+import { update, updatePanel, selectPanel, sizeOf } from './state.js';
+import { applyPreset, presetById } from './presets.js';
+import { renderCover } from './render.js';
 
-export const SCENES = [
-  { file: '1-cover.jpg', shot: 'cover', layout: 'classic', grade: 'vice', title: 'VICE COVER', w: 1080, h: 1080 },
-  { file: '2-editor.jpg', shot: 'editor', layout: 'classic', grade: 'vice', title: 'VICE COVER', w: 1280, h: 720 },
-  { file: '3-cover.jpg', shot: 'cover', layout: 'trio', grade: 'neon', title: 'NEON STRIP', w: 1080, h: 1080 },
-  { file: '4-editor.jpg', shot: 'editor', layout: 'duo', grade: 'golden', title: 'GOLDEN HOUR', w: 1280, h: 720 },
-];
-
-export function sceneFor(file) {
-  return SCENES.find((s) => s.file === file) || null;
-}
-
-// Build the state patch for a shot URL's parameters. Photos alternate
-// between the two built-in samples so every panel shows a real photo
-// except the ones a scene leaves deliberately empty.
-export function shotPatch(params) {
-  const layout = params.get('layout') || 'classic';
-  const grade = params.get('grade') || 'vice';
-  const title = params.get('title') || 'VICE COVER';
-  const caption = params.get('caption') || 'Welcome to Leonida';
-  const preset = params.get('preset') ? presetById(params.get('preset')) : null;
-  if (preset) return presetPatch(preset);
-  const counts = { classic: 5, trio: 3, duo: 2, solo: 1 };
-  const n = counts[layout] || 5;
-  const samples = ['boulevard', 'pier'];
+export function parseShotQuery(search) {
+  const q = new URLSearchParams(search);
   return {
-    layout,
-    grade,
-    title,
-    caption,
-    letterPos: params.get('letterPos') || 'bottom',
-    letterGradient: params.get('letterGradient') !== 'off',
-    panels: Array.from({ length: n }, (_, i) => ({
-      photoId: samples[i % 2],
-      shiftX: 0,
-      shiftY: 0,
-      zoom: 1,
-      fit: 'fill',
-      flip: false,
-      grade: null,
-    })),
-    selectedPanel: 0,
+    shot: q.get('shot') || null,
+    layout: q.get('layout') || 'classic',
+    grade: q.get('grade') || 'vice',
+    title: q.get('title') || 'VICE COVER',
+    caption: q.get('caption') || 'A LEONIDA STORY',
+    preset: q.get('preset') || null,
   };
 }
 
-export function markShotReady() {
+// Stage a cover scene on the given canvas: apply the preset/layout/grade,
+// fill the panels with the sample photos in order, render at 1080x1080.
+export function stageCoverShot(state, canvas, scene) {
+  if (scene.preset) {
+    const preset = presetById(scene.preset);
+    if (preset) applyPreset(state, preset);
+  } else {
+    update(state, { layout: scene.layout, grade: scene.grade, title: scene.title, caption: scene.caption });
+  }
+  const n = state.panels.length;
+  state.photos.forEach((photo, i) => {
+    if (i < n) updatePanel(state, i, { photo: i % state.photos.length, x: 0, y: 0, zoom: 1 });
+  });
+  // Classic hero gets the boulevard, the rest alternate.
+  renderCover(canvas, state, 1080, 1080);
+  window.__shotReady = true;
+}
+
+// Stage an editor scene: same cover as a cover shot, but leave the editor
+// chrome visible and select the hero panel so the UI reads as "at work".
+export function stageEditorShot(state, canvas, scene, editor) {
+  stageCoverShot(state, canvas, scene);
+  selectPanel(state, 0);
+  if (editor) {
+    editor.syncPanelControls();
+    editor.say(`Editing ${scene.layout} layout — ${scene.grade} grade.`);
+  }
   window.__shotReady = true;
 }

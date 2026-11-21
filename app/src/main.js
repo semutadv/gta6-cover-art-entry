@@ -1,72 +1,76 @@
 // Vice Cover Studio — boot.
-// Loads the built-in samples, opens the editor on the finished-looking
-// default cover, and handles screenshot mode: ?shot=cover renders only the
-// finished cover, ?shot=editor shows the full editor with a staged cover.
-// Both set window.__shotReady once the cover is painted.
+// Loads the two built-in sample photos, builds the default Classic cover so
+// the app opens finished-looking with zero clicks, wires the editor, and
+// handles ?shot= scenes for screenshots. Everything is local: no network
+// request is ever made.
 
-import { createStore, freshCover, loadAllPhotos } from './state.js';
-import { mountEditor } from './editor.js';
+import { createState, onChange, updatePanel, panelCount, sizeOf } from './state.js';
 import { renderCover } from './render.js';
-import { shotPatch, markShotReady } from './shots.js';
+import { wireEditor } from './editor.js';
+import { parseShotQuery, stageCoverShot, stageEditorShot } from './shots.js';
 
-const store = createStore(freshCover());
+const SAMPLES = [
+  { id: 'boulevard', name: 'Boulevard', src: 'samples/boulevard.jpg' },
+  { id: 'pier', name: 'Pier', src: 'samples/pier.jpg' },
+];
 
-async function boot() {
-  const params = new URLSearchParams(location.search);
-  const shot = params.get('shot');
-  const isCoverShot = shot === 'cover';
+const canvas = document.getElementById('cover');
+const state = createState();
+window.__viceState = state;
 
-  if (isCoverShot) document.body.classList.add('cover-only');
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
 
-  const canvas = document.getElementById('stage');
-  if (shot) {
-    store.update(shotPatch(params));
-  }
-  await loadAllPhotos(store);
-
-  if (isCoverShot) {
-    const w = Number(params.get('w')) || 1080;
-    const h = Number(params.get('h')) || 1080;
-    renderCover(canvas, store.get(), w, h);
-    markShotReady();
-    return;
-  }
-
-  const els = {
-    canvas,
-    status: document.getElementById('statusLine'),
-    tray: document.getElementById('tray'),
-    presetRow: document.getElementById('presetRow'),
-    layoutRow: document.getElementById('layoutRow'),
-    gradeRow: document.getElementById('gradeRow'),
-    sizeRow: document.getElementById('sizeRow'),
-    uploadInput: document.getElementById('uploadInput'),
-    dropZone: document.getElementById('dropZone'),
-    zoomRange: document.getElementById('zoomRange'),
-    zoomLabel: document.getElementById('zoomLabel'),
-    fitBtn: document.getElementById('fitBtn'),
-    flipBtn: document.getElementById('flipBtn'),
-    panelGrade: document.getElementById('panelGrade'),
-    panelNote: document.getElementById('panelNote'),
-    titleInput: document.getElementById('titleInput'),
-    captionInput: document.getElementById('captionInput'),
-    posTop: document.getElementById('posTop'),
-    posBottom: document.getElementById('posBottom'),
-    sizeRange: document.getElementById('sizeRange'),
-    gradToggle: document.getElementById('gradToggle'),
-    surpriseBtn: document.getElementById('surpriseBtn'),
-    exportBtn: document.getElementById('exportBtn'),
-    exportAllBtn: document.getElementById('exportAllBtn'),
-  };
-  mountEditor(store, els);
-  if (shot === 'editor') {
-    // Give the editor one frame to paint before declaring the shot ready.
-    requestAnimationFrame(() => markShotReady());
+async function loadSamples() {
+  for (const sample of SAMPLES) {
+    try {
+      const image = await loadImage(sample.src);
+      state.photos.push({ ...sample, image });
+    } catch {
+      // A missing sample just leaves its panel on the placeholder art.
+    }
   }
 }
 
-boot().catch((err) => {
-  console.error(err);
-  const line = document.getElementById('statusLine');
-  if (line) line.textContent = `Could not start the studio: ${err.message}`;
-});
+function seedDefaultCover() {
+  // Boulevard in the hero, pier in the mids, alternating below.
+  const order = [0, 1, 0, 1, 0];
+  const n = panelCount(state);
+  for (let i = 0; i < n; i++) {
+    updatePanel(state, i, { photo: state.photos[order[i]] ? order[i] : null, x: 0, y: 0, zoom: 1 });
+  }
+}
+
+function rerender() {
+  const { w, h } = sizeOf(state);
+  // Preview at a fixed 720px wide so the page stays light; the cover itself
+  // is resolution-independent and exports at the chosen size.
+  const previewW = 720;
+  const previewH = Math.round((previewW * h) / w);
+  renderCover(canvas, state, previewW, previewH);
+}
+
+async function boot() {
+  await loadSamples();
+  const scene = parseShotQuery(window.location.search);
+  const editor = wireEditor(state, canvas, rerender);
+  onChange(state, rerender);
+  seedDefaultCover();
+  rerender();
+
+  if (scene.shot === 'cover') {
+    stageCoverShot(state, canvas, scene);
+  } else if (scene.shot === 'editor') {
+    stageEditorShot(state, canvas, scene, editor);
+  } else {
+    window.__shotReady = true;
+  }
+}
+
+boot();

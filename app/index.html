@@ -1,97 +1,107 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Vice Cover Studio — Make a GTA 6-style cover</title>
+<title>Vice Cover Studio — make your own GTA 6 style cover</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header class="masthead">
+<header class="topbar">
   <div class="brand">
-    <h1>Vice Cover Studio</h1>
-    <p>Turn your photos into a Vice City poster — offline, in your browser.</p>
+    <h1>VICE COVER STUDIO</h1>
+    <p>Turn your photos into a Vice City style cover — all on your machine, no uploads.</p>
   </div>
-  <button id="surpriseBtn" type="button" class="surprise">Surprise me</button>
+  <p id="status" class="status" role="status">Ready. Samples loaded — your first cover is already on screen.</p>
 </header>
 
 <main class="workbench">
-  <section id="dropZone" class="stage" aria-label="Cover preview">
-    <canvas id="stage" width="1080" height="1080"></canvas>
-    <p class="hint">Click a panel to select it · drag its photo to move it · arrows nudge · + / − zoom</p>
+  <section id="stage" class="stage" aria-label="Cover preview">
+    <canvas id="cover" width="720" height="720"></canvas>
+    <p class="hint">Click a panel to select it, then click a photo below to place it. Drag a photo inside its panel to move it. Arrow keys nudge, + / − zoom.</p>
   </section>
 
-  <aside class="controls">
-    <section class="panel-block">
-      <h2>Preset gallery</h2>
-      <p class="note">One click loads a whole cover recipe. Tweak anything after.</p>
-      <div id="presetRow" class="preset-row"></div>
-    </section>
-
-    <section class="panel-block">
+  <aside class="panel" aria-label="Editor controls">
+    <section class="group">
       <h2>Layout</h2>
-      <div id="layoutRow" class="chip-row"></div>
+      <div id="layoutRow" class="chips"></div>
     </section>
 
-    <section class="panel-block">
-      <h2>Photos</h2>
-      <div class="upload-row">
-        <label class="upload-btn" for="uploadInput">Add photos</label>
-        <input id="uploadInput" type="file" accept="image/*" multiple hidden>
-        <span class="note">Up to 6 photos · or drop them on the stage.</span>
-      </div>
-      <div id="tray" class="tray"></div>
-    </section>
-
-    <section class="panel-block">
+    <section class="group">
       <h2>Colour grade</h2>
-      <div id="gradeRow" class="chip-row"></div>
+      <div id="gradeRow" class="chips"></div>
     </section>
 
-    <section class="panel-block">
-      <h2>Selected panel</h2>
-      <p id="panelNote" class="note">Panel 1 of 5 — photo set</p>
-      <label class="slider-row">Zoom <input id="zoomRange" type="range" min="1" max="3" step="0.05" value="1"> <span id="zoomLabel">100%</span></label>
-      <div class="chip-row">
-        <button id="fitBtn" type="button">Fill frame</button>
-        <button id="flipBtn" type="button" aria-pressed="false">Mirror</button>
+    <section class="group">
+      <h2>Preset Gallery</h2>
+      <p class="note">One click restyles the whole cover. Your photos stay where they are.</p>
+      <div id="presetGallery" class="presets"></div>
+    </section>
+
+    <section class="group">
+      <h2>Lettering</h2>
+      <label>Title <input id="titleInput" type="text" value="VICE COVER" maxlength="40"></label>
+      <label>Caption <input id="captionInput" type="text" value="A LEONIDA STORY" maxlength="60"></label>
+      <div class="row">
+        <label>Position
+          <select id="titlePosSel">
+            <option value="top">Top</option>
+            <option value="bottom">Bottom</option>
+          </select>
+        </label>
+        <label>Size <input id="titleSizeRange" type="range" min="0.7" max="1.4" step="0.05" value="1"></label>
       </div>
-      <label class="select-row">Panel grade
-        <select id="panelGrade">
-          <option value="">Follows the cover</option>
-          <option value="vice">Vice Sunset</option>
-          <option value="neon">Neon Nights</option>
-          <option value="golden">Golden Hour</option>
-          <option value="noir">Noir Vice</option>
-          <option value="original">Original</option>
-        </select>
+      <label class="check"><input id="gradientChk" type="checkbox" checked> Sunset gradient fill</label>
+    </section>
+
+    <section class="group">
+      <h2>Selected panel</h2>
+      <label>Zoom <input id="zoomRange" type="range" min="1" max="3" step="0.05" value="1"></label>
+      <div class="row">
+        <button id="fitBtn" class="btn small" type="button">Fit: Fill</button>
+        <label>Panel grade
+          <select id="panelGradeSel">
+            <option value="">Follow global</option>
+            <option value="vice">Vice Sunset</option>
+            <option value="neon">Neon Nights</option>
+            <option value="golden">Golden Hour</option>
+            <option value="noir">Noir Vice</option>
+            <option value="original">Original</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <section class="group">
+      <h2>Photos</h2>
+      <p class="note">Up to 6 photos. Drop files on the cover, or pick them here. The two samples are built in.</p>
+      <div id="thumbs" class="thumbs"></div>
+      <label class="btn file">Add photos…
+        <input id="fileInput" type="file" accept="image/*" multiple hidden>
       </label>
     </section>
 
-    <section class="panel-block">
-      <h2>Lettering</h2>
-      <label class="field">Title <input id="titleInput" type="text" value="VICE COVER" maxlength="24"></label>
-      <label class="field">Caption <input id="captionInput" type="text" value="Welcome to Leonida" maxlength="48"></label>
-      <div class="chip-row">
-        <button id="posTop" type="button">Top</button>
-        <button id="posBottom" type="button" class="on">Bottom</button>
-        <button id="gradToggle" type="button" aria-pressed="true" class="on">Sunset fill</button>
+    <section class="group">
+      <h2>Export</h2>
+      <label>Size
+        <select id="sizeSel">
+          <option value="1080x1080">Square post · 1080 × 1080</option>
+          <option value="1080x1350">Portrait post · 1080 × 1350</option>
+          <option value="1920x1080">Landscape · 1920 × 1080</option>
+          <option value="1080x1920">Story · 1080 × 1920</option>
+        </select>
+      </label>
+      <div class="row">
+        <button id="exportBtn" class="btn primary" type="button">Export PNG</button>
+        <button id="exportAllBtn" class="btn" type="button">Export all sizes</button>
       </div>
-      <label class="slider-row">Letter size <input id="sizeRange" type="range" min="0.6" max="1.6" step="0.05" value="1"></label>
+      <button id="surpriseBtn" class="btn ghost" type="button">Surprise me</button>
     </section>
 
-    <section class="panel-block">
-      <h2>Export</h2>
-      <div id="sizeRow" class="chip-row"></div>
-      <div class="export-row">
-        <button id="exportBtn" type="button" class="primary">Export PNG</button>
-        <button id="exportAllBtn" type="button">Export all sizes</button>
-      </div>
-    </section>
+    <p class="fine">Photos never leave your computer. No accounts, no uploads, no network — the whole app runs from these files.</p>
   </aside>
 </main>
 
-<footer class="statusbar"><p id="statusLine">Ready — your cover is already on screen.</p></footer>
-<script type="module" src="src/main.js"></script>
+<script type="module" src="./src/main.js"></script>
 </body>
 </html>

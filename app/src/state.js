@@ -1,121 +1,97 @@
-// Vice Cover Studio — cover state.
-// One plain object holds everything the cover is: which layout, which grade,
-// which photo sits in each panel and how it is framed, plus the lettering.
-// Every change flows through `update`, which notifies listeners so the
-// preview re-renders and the panel controls stay in sync.
+// Vice Cover Studio — the cover state.
+// One plain object holds everything the cover is: which layout, which photos
+// sit in which panels, the grade, the lettering and the export size. The
+// editor mutates it through `update()` so every change re-renders once and
+// every listener hears about it in the same order.
 
 export const LAYOUT_IDS = ['classic', 'trio', 'duo', 'solo'];
 export const GRADE_IDS = ['vice', 'neon', 'golden', 'noir', 'original'];
-export const EXPORT_SIZES = [
-  { id: '1080x1080', label: 'Post · 1080 × 1080', w: 1080, h: 1080 },
-  { id: '1080x1350', label: 'Portrait · 1080 × 1350', w: 1080, h: 1350 },
-  { id: '1920x1080', label: 'Landscape · 1920 × 1080', w: 1920, h: 1080 },
-  { id: '1080x1920', label: 'Story · 1080 × 1920', w: 1080, h: 1920 },
-];
+export const SIZE_IDS = ['1080x1080', '1080x1350', '1920x1080', '1080x1920'];
 
-export const SAMPLE_PHOTOS = [
-  { id: 'boulevard', name: 'Boulevard', src: 'samples/boulevard.jpg' },
-  { id: 'pier', name: 'Pier', src: 'samples/pier.jpg' },
-];
+export const SIZE_LABELS = {
+  '1080x1080': 'Square post · 1080 × 1080',
+  '1080x1350': 'Portrait post · 1080 × 1350',
+  '1920x1080': 'Landscape · 1920 × 1080',
+  '1080x1920': 'Story · 1080 × 1920',
+};
 
-let photoCounter = 0;
+export const PANEL_COUNT = { classic: 5, trio: 3, duo: 2, solo: 1 };
 
-export function makePanel(photoId = null) {
+function blankPanel() {
   return {
-    photoId,
-    shiftX: 0, // fraction of panel width, -1..1
-    shiftY: 0, // fraction of panel height, -1..1
-    zoom: 1, // 1..3
-    fit: 'fill', // 'fill' | 'fit'
-    flip: false,
-    grade: null, // null = use the cover's global grade
+    photo: null, // index into state.photos, or null for an empty panel
+    x: 0, // photo pan, -1..1 (0 = centred)
+    y: 0,
+    zoom: 1, // 1 = fit the panel exactly, more = closer
+    fit: 'fill', // 'fill' crops, 'fit' letterboxes
+    grade: null, // null = follow the global grade
   };
 }
 
-export function panelCountFor(layout) {
-  if (layout === 'classic') return 5;
-  if (layout === 'trio') return 3;
-  if (layout === 'duo') return 2;
-  return 1; // solo
-}
-
-export function freshCover() {
+export function createState() {
+  const panels = [];
+  for (let i = 0; i < 5; i++) panels.push(blankPanel());
   return {
     layout: 'classic',
+    size: '1080x1080',
     grade: 'vice',
     title: 'VICE COVER',
-    caption: 'Welcome to Leonida',
-    letterPos: 'bottom', // 'top' | 'bottom'
-    letterSize: 1, // 0.6..1.6
-    letterGradient: true,
-    exportSize: '1080x1080',
-    photos: SAMPLE_PHOTOS.map((p) => ({ ...p, image: null, loaded: false })),
-    panels: [
-      makePanel('boulevard'),
-      makePanel('pier'),
-      makePanel('boulevard'),
-      makePanel('pier'),
-      makePanel(null),
-    ],
-    selectedPanel: 0,
-    selectedPhoto: 'boulevard',
+    caption: 'A LEONIDA STORY',
+    titlePos: 'top',
+    titleSize: 1,
+    titleGradient: true,
+    panels,
+    selected: 0,
+    photos: [], // { id, name, src, image }
+    listeners: [],
   };
 }
 
-export function createStore(initial = freshCover()) {
-  let state = initial;
-  const listeners = new Set();
-  return {
-    get() {
-      return state;
-    },
-    update(patch) {
-      state = { ...state, ...patch };
-      listeners.forEach((fn) => fn(state));
-    },
-    updatePanel(index, patch) {
-      const panels = state.panels.map((p, i) => (i === index ? { ...p, ...patch } : p));
-      this.update({ panels });
-    },
-    setLayout(layout) {
-      const count = panelCountFor(layout);
-      const panels = Array.from({ length: count }, (_, i) => {
-        const old = state.panels[i];
-        return old ? { ...old } : makePanel(i < 2 ? SAMPLE_PHOTOS[i % 2].id : null);
-      });
-      this.update({ layout, panels, selectedPanel: 0 });
-    },
-    addPhoto(file) {
-      const id = `upload-${++photoCounter}`;
-      const src = URL.createObjectURL(file);
-      const photo = { id, name: file.name.replace(/\.[^.]+$/, ''), src, image: null, loaded: false };
-      this.update({ photos: [...state.photos, photo], selectedPhoto: id });
-      return photo;
-    },
-    photoById(id) {
-      return state.photos.find((p) => p.id === id) || null;
-    },
-    subscribe(fn) {
-      listeners.add(fn);
-      return () => listeners.delete(fn);
-    },
+export function onChange(state, fn) {
+  state.listeners.push(fn);
+  return () => {
+    const i = state.listeners.indexOf(fn);
+    if (i >= 0) state.listeners.splice(i, 1);
   };
 }
 
-export function loadPhotoImage(photo) {
-  if (photo.image) return Promise.resolve(photo.image);
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      photo.image = img;
-      photo.loaded = true;
-      resolve(img);
-    };
-    img.onerror = () => reject(new Error(`could not load ${photo.name}`));
-    img.src = photo.src;
-  });
+export function update(state, patch) {
+  Object.assign(state, patch);
+  for (const fn of state.listeners) fn(state);
 }
 
-export function loadAllPhotos(store) {
-  return Promise.all(store.get().photos.map((p) => loadPhotoImage(p).catch(() => null)));
+export function updatePanel(state, index, patch) {
+  Object.assign(state.panels[index], patch);
+  for (const fn of state.listeners) fn(state);
+}
+
+export function selectPanel(state, index) {
+  state.selected = index;
+  for (const fn of state.listeners) fn(state);
+}
+
+export function panelCount(state) {
+  return PANEL_COUNT[state.layout] ?? 5;
+}
+
+export function activePanels(state) {
+  return state.panels.slice(0, panelCount(state));
+}
+
+export function sizeOf(state) {
+  const [w, h] = state.size.split('x').map(Number);
+  return { w, h };
+}
+
+export function addPhoto(state, photo) {
+  state.photos.push(photo);
+  for (const fn of state.listeners) fn(state);
+  return state.photos.length - 1;
+}
+
+export function resetPanelsForLayout(state) {
+  // Keep photos where they fit; clear panels that no longer exist.
+  const n = panelCount(state);
+  for (let i = n; i < state.panels.length; i++) state.panels[i] = blankPanel();
+  if (state.selected >= n) state.selected = 0;
 }
