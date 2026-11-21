@@ -1,109 +1,121 @@
-// state.js — everything about the cover being edited, in one place.
+// state.js — the single source of truth for the cover under edit.
 //
-// A single plain object holds the chosen layout and grade, the loaded
-// photos, the per-panel arrangement (which photo, how it is panned and
-// zoomed, fit mode, an optional grade of its own), the lettering and the
-// export size. Nothing mutates it bare: changes go through update(),
-// which fires the subscribers once, so the sidebar controls and the
-// canvas preview can never show two different covers.
+// One plain object carries the layout and grade, the loaded pictures,
+// the per-panel arrangement (which picture, pan, zoom, fit mode, mirror
+// flag, an optional grade of its own), the lettering and the export
+// size. Nothing touches it directly: every change goes through mutate(),
+// which pings the subscribers exactly once, so the tool rail and the
+// canvas preview can never disagree about the cover.
 
-export const LAYOUT_IDS = ['classic', 'trio', 'duo', 'solo'];
-export const GRADE_IDS = ['vice', 'neon', 'golden', 'noir', 'original'];
+export const LAYOUT_KEYS = ['classic', 'trio', 'duo', 'solo'];
+export const GRADE_KEYS = ['vice', 'neon', 'golden', 'noir', 'original'];
 
-export const EXPORT_SIZES = {
-  post: { id: 'post', label: 'Post · 1080 × 1080', w: 1080, h: 1080 },
-  portrait: { id: 'portrait', label: 'Portrait · 1080 × 1350', w: 1080, h: 1350 },
-  landscape: { id: 'landscape', label: 'Landscape · 1920 × 1080', w: 1920, h: 1080 },
-  story: { id: 'story', label: 'Story · 1080 × 1920', w: 1080, h: 1920 },
-};
-
-export const MAX_PHOTOS = 6;
-export const PANEL_SLOTS = 5; // no layout has more panels than Classic
-
-// Each slot starts with its own framing, so when a single photo fills
-// several panels at once, every crop reads as a different shot of the
-// same scene rather than the same shot repeated.
-const SLOT_FRAMING = [
-  { x: 0, y: 0, zoom: 1 },
-  { x: -0.35, y: 0.1, zoom: 1.2 },
-  { x: 0.4, y: -0.05, zoom: 1.3 },
-  { x: 0.15, y: 0.25, zoom: 1.12 },
-  { x: -0.25, y: -0.2, zoom: 1.45 },
+// The four export shapes, as a list in menu order.
+export const OUTPUT_SIZES = [
+  { id: 'post', label: 'Post · 1080 × 1080', w: 1080, h: 1080 },
+  { id: 'portrait', label: 'Portrait · 1080 × 1350', w: 1080, h: 1350 },
+  { id: 'landscape', label: 'Landscape · 1920 × 1080', w: 1920, h: 1080 },
+  { id: 'story', label: 'Story · 1080 × 1920', w: 1080, h: 1920 },
 ];
 
-export function blankPanel(slot) {
-  const f = SLOT_FRAMING[slot % SLOT_FRAMING.length];
-  // Pan is normalised to -1..1: 0 centres the photo in the panel, and
-  // ±1 spends all of the slack the crop leaves on one side.
-  return { photoId: null, x: f.x, y: f.y, zoom: f.zoom, fit: 'fill', gradeId: null };
+export function outputSizeById(id) {
+  return OUTPUT_SIZES.find((s) => s.id === id) || OUTPUT_SIZES[0];
+}
+
+export const PHOTO_LIMIT = 6;
+export const SLOT_COUNT = 5; // Classic, the widest layout, tops out at five panels
+
+// Every slot opens with its own crop, so when one picture fills several
+// panels at once, each crop reads as a different frame of the same
+// scene instead of the same frame stamped again and again.
+const SLOT_CROPS = [
+  { x: 0.05, y: -0.05, zoom: 1.05 },
+  { x: -0.3, y: 0.12, zoom: 1.25 },
+  { x: 0.35, y: -0.1, zoom: 1.28 },
+  { x: 0.12, y: 0.22, zoom: 1.15 },
+  { x: -0.28, y: -0.18, zoom: 1.4 },
+];
+
+export function freshPanel(slot) {
+  const crop = SLOT_CROPS[slot % SLOT_CROPS.length];
+  // Pan runs -1..1: 0 centres the picture in the panel, and ±1 spends
+  // all the slack the crop leaves on one side.
+  return {
+    photoId: null,
+    x: crop.x,
+    y: crop.y,
+    zoom: crop.zoom,
+    fit: 'fill',
+    flip: false,
+    gradeId: null,
+  };
 }
 
 export const state = {
   layoutId: 'classic',
   gradeId: 'vice',
   title: 'VICE COVER',
-  caption: 'SUNSET CITY LIMITS',
+  caption: 'LEONIDA AFTER DARK',
   letterPos: 'top',
   letterSize: 1,
   letterGradient: true,
   exportSizeId: 'post',
   selectedPanel: 0,
   photos: [], // entries are { id, name, img } with img a loaded HTMLImageElement
-  panels: Array.from({ length: PANEL_SLOTS }, (_, i) => blankPanel(i)),
+  panels: Array.from({ length: SLOT_COUNT }, (_, i) => freshPanel(i)),
 };
 
 let nextPhotoId = 1;
-const listeners = new Set();
+const subscribers = new Set();
 
-export function onChange(fn) {
-  listeners.add(fn);
-  return () => listeners.delete(fn);
+export function subscribe(fn) {
+  subscribers.add(fn);
+  return () => subscribers.delete(fn);
 }
 
-export function emit() {
-  for (const fn of [...listeners]) fn(state);
+export function notify() {
+  for (const fn of [...subscribers]) fn(state);
 }
 
-// Apply a mutation, then tell everyone about it exactly once.
-export function update(fn) {
+// Run a mutation, then tell every subscriber once.
+export function mutate(fn) {
   fn(state);
-  emit();
+  notify();
 }
 
-export function addPhoto(name, img) {
-  if (state.photos.length >= MAX_PHOTOS) return null;
+export function registerPhoto(name, img) {
+  if (state.photos.length >= PHOTO_LIMIT) return null;
   const photo = { id: nextPhotoId++, name, img };
   state.photos.push(photo);
   return photo;
 }
 
-export function photoById(id) {
+export function findPhoto(id) {
   return state.photos.find((p) => p.id === id) || null;
 }
 
-// Which loaded photo (counted by index) belongs in each panel of a
+// Which loaded picture (counted by position) goes in each panel of a
 // layout. This is what makes the app — and every screenshot scene —
 // open on a composed cover instead of a grid of empty frames.
-const PHOTO_PLAN = {
-  classic: [0, 1, 0, 1, 0],
-  trio: [0, 1, 0],
-  duo: [1, 0],
-  solo: [0],
-};
-
-export function planFor(layoutId) {
-  return PHOTO_PLAN[layoutId] || PHOTO_PLAN.classic;
+export function photoDealFor(layoutId) {
+  switch (layoutId) {
+    case 'trio': return [0, 1, 0];
+    case 'duo': return [1, 0];
+    case 'solo': return [0];
+    case 'classic':
+    default: return [0, 1, 0, 1, 0];
+  }
 }
 
-// Deal the loaded photos into the current layout's panels, resetting
-// each panel's framing back to its slot default as we go.
-export function assignPlannedPhotos() {
-  const plan = planFor(state.layoutId);
+// Deal the loaded pictures into the current layout's panels, handing
+// each panel its slot crop again as we go.
+export function dealPhotos() {
+  const deal = photoDealFor(state.layoutId);
   state.panels.forEach((panel, i) => {
-    Object.assign(panel, blankPanel(i));
-    if (i < plan.length && state.photos.length > 0) {
-      panel.photoId = state.photos[plan[i] % state.photos.length].id;
+    Object.assign(panel, freshPanel(i));
+    if (i < deal.length && state.photos.length > 0) {
+      panel.photoId = state.photos[deal[i] % state.photos.length].id;
     }
   });
-  if (state.selectedPanel >= plan.length) state.selectedPanel = 0;
+  if (state.selectedPanel >= deal.length) state.selectedPanel = 0;
 }
