@@ -1,39 +1,55 @@
-// shots.js — the deterministic screenshot scenes.
-//
-// The capture harness opens the app with ?shot=cover or ?shot=editor
-// plus layout / grade / title parameters (the scene list lives in
-// shots.json at the repo root). This module folds those parameters
-// into the state: the built-in samples dealt into the requested
-// layout, and — for editor scenes — a panel left selected, the way a
-// user's screen looks mid-edit. Nothing here is random, so the same
-// URL always paints the same pixels.
+// Vice Cover Studio — deterministic screenshot scenes.
+// main.js calls applyShot with the page's query string: a scene sets the
+// layout, grade and lettering, loads the built-in samples into the panels,
+// renders once, and raises window.__shotReady. The same four scenes are
+// listed in shots.json at the repo root.
 
-import { state, dealPhotos } from './state.js';
+import { presetPatch, presetById } from './presets.js';
 
-const KNOWN_LAYOUTS = ['classic', 'trio', 'duo', 'solo'];
-const KNOWN_GRADES = ['vice', 'neon', 'golden', 'noir', 'original'];
+export const SCENES = [
+  { file: '1-cover.jpg', shot: 'cover', layout: 'classic', grade: 'vice', title: 'VICE COVER', w: 1080, h: 1080 },
+  { file: '2-editor.jpg', shot: 'editor', layout: 'classic', grade: 'vice', title: 'VICE COVER', w: 1280, h: 720 },
+  { file: '3-cover.jpg', shot: 'cover', layout: 'trio', grade: 'neon', title: 'NEON STRIP', w: 1080, h: 1080 },
+  { file: '4-editor.jpg', shot: 'editor', layout: 'duo', grade: 'golden', title: 'GOLDEN HOUR', w: 1280, h: 720 },
+];
 
-export function applySceneParams(params) {
-  const layout = params.get('layout');
-  if (layout && KNOWN_LAYOUTS.includes(layout)) state.layoutId = layout;
+export function sceneFor(file) {
+  return SCENES.find((s) => s.file === file) || null;
+}
 
-  const grade = params.get('grade');
-  if (grade && KNOWN_GRADES.includes(grade)) state.gradeId = grade;
+// Build the state patch for a shot URL's parameters. Photos alternate
+// between the two built-in samples so every panel shows a real photo
+// except the ones a scene leaves deliberately empty.
+export function shotPatch(params) {
+  const layout = params.get('layout') || 'classic';
+  const grade = params.get('grade') || 'vice';
+  const title = params.get('title') || 'VICE COVER';
+  const caption = params.get('caption') || 'Welcome to Leonida';
+  const preset = params.get('preset') ? presetById(params.get('preset')) : null;
+  if (preset) return presetPatch(preset);
+  const counts = { classic: 5, trio: 3, duo: 2, solo: 1 };
+  const n = counts[layout] || 5;
+  const samples = ['boulevard', 'pier'];
+  return {
+    layout,
+    grade,
+    title,
+    caption,
+    letterPos: params.get('letterPos') || 'bottom',
+    letterGradient: params.get('letterGradient') !== 'off',
+    panels: Array.from({ length: n }, (_, i) => ({
+      photoId: samples[i % 2],
+      shiftX: 0,
+      shiftY: 0,
+      zoom: 1,
+      fit: 'fill',
+      flip: false,
+      grade: null,
+    })),
+    selectedPanel: 0,
+  };
+}
 
-  const title = params.get('title');
-  if (title !== null) state.title = title;
-
-  const caption = params.get('caption');
-  if (caption !== null) state.caption = caption;
-
-  const spot = params.get('letterPos');
-  if (spot === 'top' || spot === 'bottom') state.letterPos = spot;
-
-  // main.js has already loaded the samples; deal them into the layout.
-  dealPhotos();
-
-  // Leave the second panel selected (the only panel, for Solo), so an
-  // editor screenshot shows the selection outline at work.
-  const count = state.layoutId === 'solo' ? 1 : 2;
-  state.selectedPanel = Math.min(1, count - 1);
+export function markShotReady() {
+  window.__shotReady = true;
 }

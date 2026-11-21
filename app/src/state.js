@@ -1,121 +1,121 @@
-// state.js — the single source of truth for the cover under edit.
-//
-// One plain object carries the layout and grade, the loaded pictures,
-// the per-panel arrangement (which picture, pan, zoom, fit mode, mirror
-// flag, an optional grade of its own), the lettering and the export
-// size. Nothing touches it directly: every change goes through mutate(),
-// which pings the subscribers exactly once, so the tool rail and the
-// canvas preview can never disagree about the cover.
+// Vice Cover Studio — cover state.
+// One plain object holds everything the cover is: which layout, which grade,
+// which photo sits in each panel and how it is framed, plus the lettering.
+// Every change flows through `update`, which notifies listeners so the
+// preview re-renders and the panel controls stay in sync.
 
-export const LAYOUT_KEYS = ['classic', 'trio', 'duo', 'solo'];
-export const GRADE_KEYS = ['vice', 'neon', 'golden', 'noir', 'original'];
-
-// The four export shapes, as a list in menu order.
-export const OUTPUT_SIZES = [
-  { id: 'post', label: 'Post · 1080 × 1080', w: 1080, h: 1080 },
-  { id: 'portrait', label: 'Portrait · 1080 × 1350', w: 1080, h: 1350 },
-  { id: 'landscape', label: 'Landscape · 1920 × 1080', w: 1920, h: 1080 },
-  { id: 'story', label: 'Story · 1080 × 1920', w: 1080, h: 1920 },
+export const LAYOUT_IDS = ['classic', 'trio', 'duo', 'solo'];
+export const GRADE_IDS = ['vice', 'neon', 'golden', 'noir', 'original'];
+export const EXPORT_SIZES = [
+  { id: '1080x1080', label: 'Post · 1080 × 1080', w: 1080, h: 1080 },
+  { id: '1080x1350', label: 'Portrait · 1080 × 1350', w: 1080, h: 1350 },
+  { id: '1920x1080', label: 'Landscape · 1920 × 1080', w: 1920, h: 1080 },
+  { id: '1080x1920', label: 'Story · 1080 × 1920', w: 1080, h: 1920 },
 ];
 
-export function outputSizeById(id) {
-  return OUTPUT_SIZES.find((s) => s.id === id) || OUTPUT_SIZES[0];
-}
-
-export const PHOTO_LIMIT = 6;
-export const SLOT_COUNT = 5; // Classic, the widest layout, tops out at five panels
-
-// Every slot opens with its own crop, so when one picture fills several
-// panels at once, each crop reads as a different frame of the same
-// scene instead of the same frame stamped again and again.
-const SLOT_CROPS = [
-  { x: 0.05, y: -0.05, zoom: 1.05 },
-  { x: -0.3, y: 0.12, zoom: 1.25 },
-  { x: 0.35, y: -0.1, zoom: 1.28 },
-  { x: 0.12, y: 0.22, zoom: 1.15 },
-  { x: -0.28, y: -0.18, zoom: 1.4 },
+export const SAMPLE_PHOTOS = [
+  { id: 'boulevard', name: 'Boulevard', src: 'samples/boulevard.jpg' },
+  { id: 'pier', name: 'Pier', src: 'samples/pier.jpg' },
 ];
 
-export function freshPanel(slot) {
-  const crop = SLOT_CROPS[slot % SLOT_CROPS.length];
-  // Pan runs -1..1: 0 centres the picture in the panel, and ±1 spends
-  // all the slack the crop leaves on one side.
+let photoCounter = 0;
+
+export function makePanel(photoId = null) {
   return {
-    photoId: null,
-    x: crop.x,
-    y: crop.y,
-    zoom: crop.zoom,
-    fit: 'fill',
+    photoId,
+    shiftX: 0, // fraction of panel width, -1..1
+    shiftY: 0, // fraction of panel height, -1..1
+    zoom: 1, // 1..3
+    fit: 'fill', // 'fill' | 'fit'
     flip: false,
-    gradeId: null,
+    grade: null, // null = use the cover's global grade
   };
 }
 
-export const state = {
-  layoutId: 'classic',
-  gradeId: 'vice',
-  title: 'VICE COVER',
-  caption: 'LEONIDA AFTER DARK',
-  letterPos: 'top',
-  letterSize: 1,
-  letterGradient: true,
-  exportSizeId: 'post',
-  selectedPanel: 0,
-  photos: [], // entries are { id, name, img } with img a loaded HTMLImageElement
-  panels: Array.from({ length: SLOT_COUNT }, (_, i) => freshPanel(i)),
-};
-
-let nextPhotoId = 1;
-const subscribers = new Set();
-
-export function subscribe(fn) {
-  subscribers.add(fn);
-  return () => subscribers.delete(fn);
+export function panelCountFor(layout) {
+  if (layout === 'classic') return 5;
+  if (layout === 'trio') return 3;
+  if (layout === 'duo') return 2;
+  return 1; // solo
 }
 
-export function notify() {
-  for (const fn of [...subscribers]) fn(state);
+export function freshCover() {
+  return {
+    layout: 'classic',
+    grade: 'vice',
+    title: 'VICE COVER',
+    caption: 'Welcome to Leonida',
+    letterPos: 'bottom', // 'top' | 'bottom'
+    letterSize: 1, // 0.6..1.6
+    letterGradient: true,
+    exportSize: '1080x1080',
+    photos: SAMPLE_PHOTOS.map((p) => ({ ...p, image: null, loaded: false })),
+    panels: [
+      makePanel('boulevard'),
+      makePanel('pier'),
+      makePanel('boulevard'),
+      makePanel('pier'),
+      makePanel(null),
+    ],
+    selectedPanel: 0,
+    selectedPhoto: 'boulevard',
+  };
 }
 
-// Run a mutation, then tell every subscriber once.
-export function mutate(fn) {
-  fn(state);
-  notify();
+export function createStore(initial = freshCover()) {
+  let state = initial;
+  const listeners = new Set();
+  return {
+    get() {
+      return state;
+    },
+    update(patch) {
+      state = { ...state, ...patch };
+      listeners.forEach((fn) => fn(state));
+    },
+    updatePanel(index, patch) {
+      const panels = state.panels.map((p, i) => (i === index ? { ...p, ...patch } : p));
+      this.update({ panels });
+    },
+    setLayout(layout) {
+      const count = panelCountFor(layout);
+      const panels = Array.from({ length: count }, (_, i) => {
+        const old = state.panels[i];
+        return old ? { ...old } : makePanel(i < 2 ? SAMPLE_PHOTOS[i % 2].id : null);
+      });
+      this.update({ layout, panels, selectedPanel: 0 });
+    },
+    addPhoto(file) {
+      const id = `upload-${++photoCounter}`;
+      const src = URL.createObjectURL(file);
+      const photo = { id, name: file.name.replace(/\.[^.]+$/, ''), src, image: null, loaded: false };
+      this.update({ photos: [...state.photos, photo], selectedPhoto: id });
+      return photo;
+    },
+    photoById(id) {
+      return state.photos.find((p) => p.id === id) || null;
+    },
+    subscribe(fn) {
+      listeners.add(fn);
+      return () => listeners.delete(fn);
+    },
+  };
 }
 
-export function registerPhoto(name, img) {
-  if (state.photos.length >= PHOTO_LIMIT) return null;
-  const photo = { id: nextPhotoId++, name, img };
-  state.photos.push(photo);
-  return photo;
-}
-
-export function findPhoto(id) {
-  return state.photos.find((p) => p.id === id) || null;
-}
-
-// Which loaded picture (counted by position) goes in each panel of a
-// layout. This is what makes the app — and every screenshot scene —
-// open on a composed cover instead of a grid of empty frames.
-export function photoDealFor(layoutId) {
-  switch (layoutId) {
-    case 'trio': return [0, 1, 0];
-    case 'duo': return [1, 0];
-    case 'solo': return [0];
-    case 'classic':
-    default: return [0, 1, 0, 1, 0];
-  }
-}
-
-// Deal the loaded pictures into the current layout's panels, handing
-// each panel its slot crop again as we go.
-export function dealPhotos() {
-  const deal = photoDealFor(state.layoutId);
-  state.panels.forEach((panel, i) => {
-    Object.assign(panel, freshPanel(i));
-    if (i < deal.length && state.photos.length > 0) {
-      panel.photoId = state.photos[deal[i] % state.photos.length].id;
-    }
+export function loadPhotoImage(photo) {
+  if (photo.image) return Promise.resolve(photo.image);
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      photo.image = img;
+      photo.loaded = true;
+      resolve(img);
+    };
+    img.onerror = () => reject(new Error(`could not load ${photo.name}`));
+    img.src = photo.src;
   });
-  if (state.selectedPanel >= deal.length) state.selectedPanel = 0;
+}
+
+export function loadAllPhotos(store) {
+  return Promise.all(store.get().photos.map((p) => loadPhotoImage(p).catch(() => null)));
 }
