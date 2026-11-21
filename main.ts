@@ -1,26 +1,19 @@
-// Vice Cover Studio — the make.fun entry program (Node 22, standard
-// library only, no dependencies).
-//
-// The entry itself is the static site in app/: open app/index.html in a
-// desktop browser and the studio runs entirely offline, turning photos
-// into multi-panel cover art. This program is the hand-in. It copies
-// app/ and screenshots/ into the output directory and writes a
-// dossier.json there, built by the vendored buildDossier and capped
-// exactly as the gta6-cover-art-01 gate demands.
-//
-// Local check:
-//   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
+// Vice Cover Studio — entry program.
+// Copies app/ and screenshots/ next to this file into the output directory
+// (MAKEFUN_OUTPUT_DIR, or /output) and writes dossier.json there, built by
+// the shipped vendor/makefun-app.ts dossier builder under the scorer caps.
 
-import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-app.ts';
 
-const repoRoot = fileURLToPath(new URL('.', import.meta.url));
-const destDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
+const here = dirname(fileURLToPath(import.meta.url));
+const outDir = resolve(process.env.MAKEFUN_OUTPUT_DIR || '/output');
 
-// The gate caps the gta6-cover-art-01 scorer enforces on the hand-in.
-const GATE_CAPS = {
+// The scorer's caps for this competition, named so the dossier call reads
+// as a policy instead of a magic object.
+const DOSSIER_CAPS = {
   text_max_bytes: 163840,
   screenshots: { max: 4, max_bytes: 262144 },
   app_max_files: 993,
@@ -28,24 +21,18 @@ const GATE_CAPS = {
   app_path_max_bytes: 1000,
 };
 
-function copyTree(from, to) {
-  cpSync(join(repoRoot, from), join(destDir, to), { recursive: true });
+function copyTree(name: string): void {
+  const from = join(here, name);
+  const to = join(outDir, name);
+  if (!existsSync(from)) return;
+  rmSync(to, { recursive: true, force: true });
+  cpSync(from, to, { recursive: true });
 }
 
-function copyShots() {
-  mkdirSync(join(destDir, 'screenshots'), { recursive: true });
-  if (existsSync(join(repoRoot, 'screenshots'))) {
-    copyTree('screenshots', 'screenshots');
-  }
-}
+mkdirSync(outDir, { recursive: true });
+copyTree('app');
+copyTree('screenshots');
 
-function handIn() {
-  mkdirSync(destDir, { recursive: true });
-  copyTree('app', 'app');
-  copyShots();
-  const record = buildDossier(destDir, GATE_CAPS);
-  writeFileSync(join(destDir, 'dossier.json'), record);
-  console.log(`Vice Cover Studio handed in: ${join(destDir, 'dossier.json')}`);
-}
-
-handIn();
+const dossier = buildDossier(outDir, DOSSIER_CAPS);
+writeFileSync(join(outDir, 'dossier.json'), dossier);
+console.log(`dossier written: ${join(outDir, 'dossier.json')} (${dossier.length} bytes)`);
